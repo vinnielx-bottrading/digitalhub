@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Amoralic Digital Performance Dashboard v12.0 · Supabase</title>
+<title>Amoralic Digital Performance Dashboard v12.1 · Supabase</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -171,7 +171,7 @@ td strong{font-weight:700}
       <a href="#paid" data-page="paid">Paid Media</a>
       <a href="#review" data-page="review">Nghiệm thu tháng</a>
     </nav>
-    <div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v12.0</div>
+    <div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v12.1</div>
   </aside>
 
   <main class="main">
@@ -225,7 +225,7 @@ td strong{font-weight:700}
         <div class="history-note">
           <strong>History:</strong> mỗi Month + Channel là một bộ dữ liệu độc lập. Khi chuyển sang tháng mới, hệ thống tạo bộ KPI mới; dữ liệu tháng trước không bị xóa hay ghi đè.
         </div>
-        <div class="kpi-lock-note"><strong>Khóa số liệu:</strong> Submit Target để khóa Target đã chốt; Submit Actual để khóa Actual nghiệm thu. Muốn sửa số đã khóa phải dùng mật khẩu quản trị.</div>
+        <div class="kpi-lock-note"><strong>Cơ chế nhập liệu:</strong> dữ liệu được ghi nhận ngay khi bạn gõ và giữ bản nháp trên trình duyệt. <strong>Không tự khóa khi nhập.</strong> Chỉ Submit Target / Submit Actual mới khóa số liệu tương ứng. Muốn sửa số đã khóa phải dùng mật khẩu quản trị.</div>
       </div>
 
       <div class="card channel-section">
@@ -503,7 +503,7 @@ function renderKpiEditor(){
  const tbody=document.getElementById("kpiEditor");if(!tbody)return;
  const targetLocked=kpiLocks.targetSubmitted,actualLocked=kpiLocks.actualSubmitted;
  tbody.innerHTML=kpiData.map((k,i)=>{const v=monthlyValues(k),p=achievement(k);return `<tr data-kpi="${i}">
-  <td class="kpi-name"><input style="width:100%;padding:8px;border:1px solid var(--line);border-radius:7px" value="${escapeHtml(k.name)}" oninput="kpiData[${i}].name=this.value;renderKpis()"></td>
+  <td class="kpi-name"><input style="width:100%;padding:8px;border:1px solid var(--line);border-radius:7px" value="${escapeHtml(k.name)}" oninput="updateKpiName(${i},this.value)"></td>
   ${k.weekly.map((w,wi)=>`<td><div class="week-cell">
    <div><div class="week-label">Target ${isLocked(i,wi,"target")?"🔒":""}</div><input aria-label="Target ${wi+1}" class="${isLocked(i,wi,"target")?"locked-input":""}" ${isLocked(i,wi,"target")?"disabled":""} type="number" value="${w.target}" oninput="updateWeeklyKpi(${i},${wi},'target',this.value)"></div>
    <div><div class="week-label">Actual ${isLocked(i,wi,"actual")?"🔒":""}</div><input aria-label="Actual ${wi+1}" class="${isLocked(i,wi,"actual")?"locked-input":""}" ${isLocked(i,wi,"actual")?"disabled":""} type="number" value="${w.actual}" oninput="updateWeeklyKpi(${i},${wi},'actual',this.value)"></div>
@@ -516,7 +516,28 @@ function renderKpiEditor(){
 }
 function updateWeeklyKpi(i,wi,type,value){
  if(isLocked(i,wi,type)){showToast("Số liệu đã khóa. Hãy Unlock / Edit bằng mật khẩu.");return}
- kpiData[i].weekly[wi][type]=safeNum(value);refreshKpiRow(i);renderKpis();setDatabaseStatus("unsaved","warn")
+ kpiData[i].weekly[wi][type]=value==="" ? 0 : safeNum(value);
+ refreshKpiRow(i);
+ saveKpiDraft();
+ setDatabaseStatus("unsaved","warn");
+}
+function updateKpiName(i,value){
+ if(!kpiData[i] || isKpiRowFullyLocked(i)) return;
+ kpiData[i].name=value;
+ const row=document.querySelector(`#kpiEditor tr[data-kpi="${i}"]`);
+ if(row) row.querySelector(".kpi-name-input")?.setAttribute("value",value);
+ saveKpiDraft();
+ setDatabaseStatus("unsaved","warn");
+}
+function updateKpiUnit(i,value){
+ if(!kpiData[i] || isKpiRowFullyLocked(i)) return;
+ kpiData[i].unit=value;
+ saveKpiDraft();
+ setDatabaseStatus("unsaved","warn");
+}
+function isKpiRowFullyLocked(i){
+ const t=kpiLocks.targets?.[i]||[], a=kpiLocks.actuals?.[i]||[];
+ return t.length===4 && a.length===4 && t.every(Boolean) && a.every(Boolean);
 }
 function refreshKpiRow(i){
  const tr=document.querySelector(`#kpiEditor tr[data-kpi="${i}"]`);if(!tr)return;
@@ -526,7 +547,10 @@ function refreshKpiRow(i){
  cells[7].innerHTML=`<strong>${Math.round(p)}%</strong>`;
  cells[8].innerHTML=`<span class="badge ${status(p)}">${label(p)}</span>`;
 }
-function addKpiRow(){kpiData.push({name:"New KPI",unit:"",invert:false,weekly:[{target:0,actual:0},{target:0,actual:0},{target:0,actual:0},{target:0,actual:0}]});renderKpiEditor();renderKpis();setDatabaseStatus("unsaved","warn")}
+function addKpiRow(){
+ kpiData.push({name:"New KPI",unit:"",invert:false,weekly:[{target:0,actual:0},{target:0,actual:0},{target:0,actual:0},{target:0,actual:0}]});
+ renderKpiEditor();renderKpis();saveKpiDraft();setDatabaseStatus("unsaved","warn");
+}
 async function submitKpiTargets(){
  if(!confirm("Xác nhận chốt toàn bộ Target của tháng và kênh này? Sau khi chốt sẽ không thể sửa nếu không có mật khẩu."))return;
  const oldLocks=clone(kpiLocks);
@@ -989,6 +1013,32 @@ async function savePaidCampaign(){
 function editPaidCampaign(i){window.editingPaidIndex=i;fillPaidForm(paidCampaigns[i])}
 async function deletePaidCampaign(i){if(confirm("Xóa Campaign này?")){paidCampaigns.splice(i,1);window.editingPaidIndex=null;renderPaidCampaigns();await saveAllData(true)}}
 function resetPaidForm(){window.editingPaidIndex=null;["paidCampaign","paidBudgetTarget","paidSpend","paidTargetLeads","paidActualLeads","paidImpressions","paidReach","paidClicks","paidConversions","paidRevenue","paidTargetCPL","paidNote"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});document.getElementById("paidPlatform").value="Meta";document.getElementById("paidObjective").value="Conversion";document.getElementById("paidCampaignStatus").value="Planned";updatePaidCalc()}
+function draftStorageKey(){
+ return `amoralic_draft_${currentAgency}_${monthKey(currentMonth)}_${currentChannel}`;
+}
+function saveKpiDraft(){
+ try{
+  localStorage.setItem(draftStorageKey(),JSON.stringify({
+   kpis:kpiData,locks:kpiLocks,updatedAt:new Date().toISOString()
+  }));
+ }catch(e){ console.warn("Draft save failed",e); }
+}
+function clearKpiDraft(){
+ try{localStorage.removeItem(draftStorageKey())}catch(e){}
+}
+function restoreKpiDraft(){
+ try{
+  const raw=localStorage.getItem(draftStorageKey());
+  if(!raw)return false;
+  const d=JSON.parse(raw);
+  if(!Array.isArray(d.kpis))return false;
+  kpiData=d.kpis.map(normalizeKpi);
+  if(d.locks)kpiLocks=normalizeLocks(d.locks,kpiData.length);
+  renderKpiEditor();
+  setDatabaseStatus("unsaved","warn");
+  return true;
+ }catch(e){ console.warn("Draft restore failed",e); return false; }
+}
 async function saveAllData(showMessage=true){
  if(!supabaseInitialized||!supabaseClient){showToast("Supabase chưa sẵn sàng");return false}
  try{
@@ -1010,6 +1060,7 @@ async function saveAllData(showMessage=true){
   },{onConflict:"agency,month_key,channel"});
   if(error)throw error;
   channelData[currentChannel]=clone(payload);
+  clearKpiDraft();
   setDatabaseStatus("saved","good");
   if(showMessage)showToast(`Đã lưu ${currentChannel} — ${monthLabel(currentMonth)}`);
   setTimeout(()=>setDatabaseStatus("connected","good"),1800);
