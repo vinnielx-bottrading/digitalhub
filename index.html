@@ -172,7 +172,7 @@ td strong{font-weight:700}
       <a href="#paid" data-page="paid">Paid Media</a>
       <a href="#review" data-page="review">Nghiệm thu tháng</a>
     </nav>
-    <div class="sidebar-bottom">Digital Performance<br>Management System · v8.1</div>
+    <div class="sidebar-bottom">Digital Performance<br>Management System · v9.0</div>
   </aside>
 
   <main class="main">
@@ -185,7 +185,7 @@ td strong{font-weight:700}
           <div class="subtitle">Monthly performance · Plan vs Actual · August 2026</div>
         </div>
         <div class="filters">
-          <span id="firebaseStatus" class="badge warn" style="align-self:center" title="Nhấp để xem trạng thái Firebase">Firebase: connecting...</span>
+          <span id="firebaseStatus" class="badge warn" style="align-self:center" title="Nhấp để xem trạng thái Firebase" onclick="showFirebaseDiagnostics()" style="align-self:center;cursor:pointer">Firebase: connecting...</span>
           <div class="agency-box"><span class="agency-label" title="Double-click để thêm Agency">Agency</span><select id="agencyPicker" class="agency-select"></select></div>
           <select id="month"><option value="2026-08">August 2026</option><option value="2026-07">July 2026</option><option value="2026-06">June 2026</option></select>
           <select id="channel"><option value="All Channels">All Channels</option><option value="Facebook">Facebook</option><option value="TikTok">TikTok</option><option value="Instagram">Instagram</option><option value="YouTube">YouTube</option><option value="Website">Website</option></select>
@@ -712,6 +712,16 @@ function hydrateChannelData(raw){
  channels=[...new Set([...DEFAULT_CHANNELS,...savedChannels])];
  ensureChannelData();
 }
+async function showFirebaseDiagnostics(){
+ if(!db){showToast("Firebase chưa được khởi tạo");return}
+ try{
+  const path=`digitalDashboard/months/${monthKey(currentMonth)}/channels/${currentChannel}`;
+  const snap=await db.ref(path).once("value");
+  showToast(`Firebase OK · READ · ${path}`);
+ }catch(err){
+  showToast("Firebase READ: "+firebaseErrorMessage(err));
+ }
+}
 async function initFirebase(){
  try{
   if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
@@ -819,26 +829,43 @@ function savePaidCampaign(){
 function editPaidCampaign(i){window.editingPaidIndex=i;fillPaidForm(paidCampaigns[i])}
 function deletePaidCampaign(i){if(confirm("Xóa Campaign này?")){paidCampaigns.splice(i,1);window.editingPaidIndex=null;renderPaidCampaigns();saveAllData(true)}}
 function resetPaidForm(){window.editingPaidIndex=null;["paidCampaign","paidBudgetTarget","paidSpend","paidTargetLeads","paidActualLeads","paidImpressions","paidReach","paidClicks","paidConversions","paidRevenue","paidTargetCPL","paidNote"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});document.getElementById("paidPlatform").value="Meta";document.getElementById("paidObjective").value="Conversion";document.getElementById("paidCampaignStatus").value="Planned";updatePaidCalc()}
+function firebaseErrorMessage(err){
+ const code=err?.code||"unknown";
+ if(code==="PERMISSION_DENIED"||code==="permission_denied") return "PERMISSION_DENIED — Firebase Rules đang chặn ghi dữ liệu.";
+ if(code==="NETWORK_ERROR") return "NETWORK_ERROR — không kết nối được Firebase.";
+ if(code==="INVALID_ARGUMENT") return "INVALID_ARGUMENT — dữ liệu gửi lên Firebase không hợp lệ.";
+ return `${code} — ${err?.message||"Không xác định"}`;
+}
 async function saveAllData(showMessage=true){
  if(!firebaseInitialized||!db){showToast("Firebase chưa sẵn sàng");return false}
  try{
   ensureChannelData();
-  channelData[currentChannel]={
+  const payload={
    kpis:clone(kpiData),
    locks:clone(kpiLocks),
    contents:clone(contents),
    paid:getPaidData(),
-   review:getReviewData()
+   review:clone(window.reviewData||{}),
+   updatedAt:firebase.database.ServerValue.TIMESTAMP
   };
-  await monthRef().set({channels:clone(channelData),updatedAt:firebase.database.ServerValue.TIMESTAMP});
+
+  // IMPORTANT: write only the currently selected channel.
+  // This prevents one channel's save from rewriting the whole month and
+  // makes the Firebase data model truly Month → Channel.
+  const ref=db.ref(`digitalDashboard/months/${monthKey(currentMonth)}/channels/${currentChannel}`);
+  await ref.set(payload);
+
+  // Keep local state in sync after a successful write.
+  channelData[currentChannel]=clone(payload);
   setFirebaseStatus("saved","good");
   if(showMessage)showToast(`Đã lưu ${currentChannel} — ${monthLabel(currentMonth)}`);
   setTimeout(()=>setFirebaseStatus("connected","good"),1800);
   return true;
  }catch(err){
   console.error("Firebase write error:",err);
+  const detail=firebaseErrorMessage(err);
   setFirebaseStatus("write error","bad");
-  showToast("Không lưu được Firebase: "+(err?.code||err?.message||"unknown error"));
+  showToast("Firebase WRITE: "+detail);
   return false;
 }
 }
