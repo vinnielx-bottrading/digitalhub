@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Amoralic Digital Performance Dashboard v13.1 · Supabase</title>
+<title>Amoralic Digital Performance Dashboard v13.2 · Supabase</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -173,10 +173,94 @@ td strong{font-weight:700}
 .industry-actions{display:flex;gap:6px;flex-wrap:wrap}
 @media(max-width:1000px){.industry-toolbar{grid-template-columns:1fr 1fr}.industry-toolbar button{width:100%}}
 
+
+/* --- Interaction / tactile UI --- */
+button{
+  transition:transform .12s ease,box-shadow .15s ease,background .15s ease,border-color .15s ease;
+  box-shadow:0 1px 1px rgba(0,0,0,.03);
+}
+button:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(20,25,32,.10)}
+button:active{transform:translateY(1px) scale(.985);box-shadow:0 1px 2px rgba(20,25,32,.06)}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(56,103,232,.18);outline-offset:1px;border-color:#8ca7f5
+}
+button.primary:hover{background:#242830;border-color:#242830}
+.help-btn{display:inline-flex;align-items:center;gap:7px}
+.help-btn span{
+  display:inline-grid;place-items:center;width:17px;height:17px;border:1px solid currentColor;
+  border-radius:50%;font-size:10px;font-weight:800
+}
+.action-row button{min-height:40px}
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(15,18,23,.46);backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center;padding:20px;z-index:1000
+}
+.modal-backdrop.open{display:flex;animation:fadeIn .18s ease}
+.modal-card{
+  position:relative;width:min(650px,100%);background:#fff;border:1px solid var(--line);
+  border-radius:18px;padding:28px;box-shadow:0 24px 70px rgba(0,0,0,.20);animation:modalIn .2s ease
+}
+.modal-close{
+  position:absolute;right:14px;top:12px;width:34px;height:34px;padding:0;border-radius:50%;
+  border:1px solid var(--line);font-size:22px;line-height:1
+}
+.modal-kicker{font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--green);margin-bottom:7px}
+.modal-card h2{margin:0 0 9px;font-size:22px}
+.modal-card p{margin:0;color:#626771;line-height:1.65;font-size:13px}
+.modal-flow{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:20px 0}
+.modal-flow>div{border:1px solid var(--line);border-radius:11px;padding:11px;background:#fafbfc}
+.modal-flow b{display:block;font-size:10px;color:var(--muted);margin-bottom:7px}
+.modal-flow span{display:block;font-size:12px;font-weight:800}
+.modal-flow small{display:block;font-size:10px;color:var(--muted);line-height:1.4;margin-top:4px}
+.modal-note{background:#f5f7fa;border-radius:11px;padding:12px 14px;font-size:12px;line-height:1.6;color:#555b65}
+.modal-ok{margin-top:16px;min-width:100px}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes modalIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+
+/* --- Mobile navigation: compact drawer, never dots --- */
+.mobile-menu-btn{display:none}
+.mobile-nav-backdrop{display:none}
+@media(max-width:760px){
+  .sidebar{
+    width:250px;transform:translateX(-105%);transition:transform .22s ease;z-index:900;
+    box-shadow:12px 0 35px rgba(0,0,0,.18);padding:22px 16px
+  }
+  .sidebar.mobile-open{transform:translateX(0)}
+  .brand{font-size:18px;padding:0 12px 24px}
+  .brand span{font-size:inherit}
+  .nav a{font-size:14px;text-align:left;padding:12px}
+  .nav a:before{content:none}
+  .sidebar-bottom{position:absolute}
+  .main{margin-left:0;width:100%;padding:68px 14px 40px}
+  .mobile-menu-btn{
+    display:flex;position:fixed;left:14px;top:14px;width:42px;height:42px;padding:9px;
+    flex-direction:column;justify-content:center;gap:5px;border:1px solid var(--line);
+    border-radius:11px;background:#fff;z-index:950;box-shadow:0 5px 18px rgba(0,0,0,.10)
+  }
+  .mobile-menu-btn span{display:block;width:22px;height:2px;background:#17191d;border-radius:2px;transition:.2s}
+  .mobile-nav-backdrop{
+    position:fixed;inset:0;background:rgba(15,18,23,.35);z-index:850
+  }
+  .mobile-nav-backdrop.open{display:block}
+  .filters{width:100%;justify-content:flex-start}
+  .filters>*{max-width:100%}
+  .modal-flow{grid-template-columns:1fr 1fr}
+  .modal-flow>div:last-child{grid-column:1/-1}
+}
+@media(max-width:420px){
+  .kpi-grid{grid-template-columns:1fr}
+  .topbar h1{font-size:22px}
+  .action-row{width:100%}
+  .action-row button{flex:1}
+  .modal-card{padding:22px}
+}
+
 </style>
 <!-- Supabase schema: use digital_dashboard_supabase_setup.sql supplied with this dashboard. -->
 </head>
 <body>
+<button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Mở menu" onclick="toggleMobileNav()"><span></span><span></span><span></span></button>
+<div class="mobile-nav-backdrop" id="mobileNavBackdrop" onclick="closeMobileNav()"></div>
 <div class="app">
   <aside class="sidebar">
     <div class="brand">AMORALIC <span>DIGITAL</span><div id="agencyBrand" style="font-size:10px;font-weight:500;letter-spacing:.02em;margin-top:4px;color:#8b9099">Agency: —</div></div>
@@ -188,7 +272,7 @@ td strong{font-weight:700}
       <a href="#paid" data-page="paid">Paid Media</a>
       <a href="#review" data-page="review">Nghiệm thu tháng</a>
     </nav>
-    <div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v13.1</div>
+    <div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v13.2</div>
   </aside>
 
   <main class="main">
@@ -355,7 +439,7 @@ td strong{font-weight:700}
     <section class="page" id="page-paid">
       <div class="page-head">
         <div><h2>Paid Media</h2><p>Quản lý từng Campaign quảng cáo và đo hiệu quả ngân sách: Spend → Traffic → Lead → Conversion → Revenue.</p></div>
-        <div class="action-row"><button onclick="showToast('Paid Media chỉ dành cho hoạt động quảng cáo trả phí; mỗi campaign được lưu riêng.')">Giải thích</button><button onclick="resetPaidForm()">+ Add Campaign</button><button class="primary" onclick="savePaidMediaPage()">Lưu Paid Media</button></div>
+        <div class="action-row"><button class="help-btn" onclick="openPaidExplanation()">Giải thích <span>?</span></button><button onclick="resetPaidForm()">+ Add Campaign</button><button class="primary" onclick="savePaidMediaPage()">Lưu Paid Media</button></div>
       </div>
       <div class="card paid-explainer">
         <strong>Paid Media = hiệu quả của tiền quảng cáo.</strong> Không dùng để thay thế KPI của kênh. Mỗi Campaign có ngân sách, chi tiêu, traffic và conversion riêng; hệ thống tự tính CTR, CPC, CPM, CPL, Conversion Rate, ROAS và mức hoàn thành Lead.
@@ -1076,7 +1160,33 @@ async function addAgency(){
  const name=prompt("Tên Agency mới:");if(!name)return;
  if(!agencies.includes(name))agencies.push(name);await changeAgency(name);
 }
-function navigate(page){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));const target=document.getElementById("page-"+page)||document.getElementById("page-overview");target.classList.add("active");document.querySelectorAll("#mainNav a").forEach(a=>a.classList.toggle("active",a.dataset.page===page));if(location.hash!=="#"+page)history.replaceState(null,"","#"+page);window.scrollTo({top:0,behavior:"smooth"})}
+
+function openPaidExplanation(){
+ const m=document.getElementById("paidExplainModal");
+ if(!m)return;
+ m.classList.add("open");
+ document.body.style.overflow="hidden";
+}
+function closePaidExplanation(){
+ const m=document.getElementById("paidExplainModal");
+ if(!m)return;
+ m.classList.remove("open");
+ document.body.style.overflow="";
+}
+function toggleMobileNav(){
+ const sidebar=document.querySelector(".sidebar");
+ const backdrop=document.getElementById("mobileNavBackdrop");
+ const open=sidebar.classList.toggle("mobile-open");
+ backdrop.classList.toggle("open",open);
+}
+function closeMobileNav(){
+ document.querySelector(".sidebar")?.classList.remove("mobile-open");
+ document.getElementById("mobileNavBackdrop")?.classList.remove("open");
+}
+document.addEventListener("keydown",e=>{
+ if(e.key==="Escape"){closePaidExplanation();closeMobileNav()}
+});
+function navigate(page){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));const target=document.getElementById("page-"+page)||document.getElementById("page-overview");target.classList.add("active");document.querySelectorAll("#mainNav a").forEach(a=>a.classList.toggle("active",a.dataset.page===page));if(location.hash!=="#"+page)history.replaceState(null,"","#"+page);closeMobileNav();window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll("#mainNav a").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();navigate(a.dataset.page)}));
 window.addEventListener("hashchange",()=>navigate(location.hash.replace("#","")||"overview"));
 document.getElementById("kpiMonthPicker")?.addEventListener("change",async e=>{currentMonth=e.target.value;document.getElementById("month").value=currentMonth;await loadMonthData()});
@@ -1367,6 +1477,29 @@ window.addEventListener("load",()=>{
  setGlobalChannelSelector();setChannelSelectors();setIndustrySelectors();setAgencySelectors();renderIndustryAllocation();
 });
 </script>
+
+
+
+<!-- PAID MEDIA EXPLANATION MODAL -->
+<div class="modal-backdrop" id="paidExplainModal" onclick="if(event.target===this)closePaidExplanation()">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="paidExplainTitle">
+    <button class="modal-close" type="button" aria-label="Đóng" onclick="closePaidExplanation()">×</button>
+    <div class="modal-kicker">PAID MEDIA</div>
+    <h2 id="paidExplainTitle">Paid Media dùng để làm gì?</h2>
+    <p>Paid Media là nơi quản lý và nghiệm thu <strong>các hoạt động có chi ngân sách quảng cáo</strong>. Nó không thay thế KPI của Channel mà giúp giải thích ngân sách đã tạo ra kết quả như thế nào.</p>
+    <div class="modal-flow">
+      <div><b>01</b><span>Budget</span><small>Ngân sách được duyệt</small></div>
+      <div><b>02</b><span>Spend</span><small>Chi tiêu thực tế</small></div>
+      <div><b>03</b><span>Traffic</span><small>Impression · Click</small></div>
+      <div><b>04</b><span>Lead</span><small>Lead · Conversion</small></div>
+      <div><b>05</b><span>Efficiency</span><small>CPL · ROAS · CTR</small></div>
+    </div>
+    <div class="modal-note">
+      <strong>Ví dụ:</strong> KPI Facebook có 300 Leads. Paid Media sẽ cho biết campaign nào tạo ra leads, đã chi bao nhiêu tiền và CPL/ROAS có hiệu quả hay không.
+    </div>
+    <button class="primary modal-ok" type="button" onclick="closePaidExplanation()">Đã hiểu</button>
+  </div>
+</div>
 
 </body>
 </html>
