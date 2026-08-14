@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Digital Performance Dashboard v11.1 · Supabase</title>
+<title>Digital Performance Dashboard v11.2 · Supabase</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -184,7 +184,7 @@ td strong{font-weight:700}
           <div class="subtitle">Monthly performance · Plan vs Actual · August 2026</div>
         </div>
         <div class="filters">
-          <span id="databaseStatus" class="badge warn" style="align-self:center;cursor:pointer" title="Nhấp để kiểm tra trạng thái Supabase" onclick="showDatabaseDiagnostics()">Supabase: connecting...</span>
+          <span id="databaseStatus" class="badge warn" style="align-self:center;cursor:pointer" title="Supabase connection status — nhấp để kiểm tra" onclick="showDatabaseDiagnostics()">Supabase: connecting...</span>
           <div class="agency-box"><span class="agency-label" title="Double-click để thêm Agency">Agency</span><select id="agencyPicker" class="agency-select"></select></div>
           <select id="month"><option value="2026-08">August 2026</option><option value="2026-07">July 2026</option><option value="2026-06">June 2026</option></select>
           <select id="channel"><option value="All Channels">All Channels</option><option value="Facebook">Facebook</option><option value="TikTok">TikTok</option><option value="Instagram">Instagram</option><option value="YouTube">YouTube</option><option value="Website">Website</option></select>
@@ -417,8 +417,8 @@ let charts={};
 let kpiLocks={targets:[],actuals:[]};
 let currentMonth=document.getElementById("month")?.value||"2026-08";
 let currentChannel="Facebook";
-let currentAgency="";
-let agencies=["In-house / Internal"];
+let currentAgency="BeeOne";
+let agencies=["BeeOne"];
 
 function safeNum(v){const n=Number(v);return Number.isFinite(n)?n:0}
 function fmt(n,unit=""){n=safeNum(n);if(unit==="₫")return new Intl.NumberFormat("vi-VN").format(n)+"₫";if(unit==="%")return n.toLocaleString("vi-VN",{maximumFractionDigits:2})+"%";return new Intl.NumberFormat("en-US").format(n)}
@@ -714,8 +714,7 @@ async function changeAgency(v){
    });
    if(error)throw error;
    await loadMonthData();
-   setDatabaseStatus("saved","good");
-   setTimeout(()=>setDatabaseStatus("connected","good"),1200);
+   setDatabaseStatus("connected","good");
   }catch(e){
    console.error("Supabase agency write error:",e);
    showToast("Không lưu được Agency: "+databaseErrorMessage(e));
@@ -838,18 +837,18 @@ async function initSupabase(){
   // Test the table before marking the app connected.
   const {error}=await supabaseClient.from("digital_dashboard_data").select("id").limit(1);
   if(error)throw error;
-  const {data:settings,error:settingsError}=await supabaseClient.from("digital_dashboard_settings").select("key,value");
+  // Dashboard agency is now BeeOne. Migrate legacy VPS Global rows/settings once.
+  const {error:migrateError}=await supabaseClient.from("digital_dashboard_data")
+    .update({agency:"BeeOne"}).eq("agency","VPS Global");
+  if(migrateError)throw migrateError;
+
+  const {error:settingsError}=await supabaseClient.from("digital_dashboard_settings").upsert({
+    key:"agency",value:"BeeOne",updated_at:new Date().toISOString()
+  });
   if(settingsError)throw settingsError;
-  const agencySetting=(settings||[]).find(x=>x.key==="agency");
-  if(agencySetting?.value){
-   currentAgency=typeof agencySetting.value==="string"?agencySetting.value:(agencySetting.value.name||currentAgency);
-   if(!agencies.includes(currentAgency))agencies.push(currentAgency);
-  }else{
-   currentAgency=currentAgency||agencies[0];
-   await supabaseClient.from("digital_dashboard_settings").upsert({
-    key:"agency",value:currentAgency,updated_at:new Date().toISOString()
-   });
-  }
+
+  currentAgency="BeeOne";
+  agencies=["BeeOne"];
   setAgencySelectors();
   supabaseInitialized=true;
   setDatabaseStatus("connected","good");
