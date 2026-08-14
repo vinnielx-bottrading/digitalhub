@@ -1386,7 +1386,7 @@ html[data-am-theme="dark"] .primary{
             <thead><tr>
               <th>KPI</th><th>WEEK 1<br>TARGET / ACTUAL</th><th>WEEK 2<br>TARGET / ACTUAL</th>
               <th>WEEK 3<br>TARGET / ACTUAL</th><th>WEEK 4<br>TARGET / ACTUAL</th>
-              <th>MONTH TARGET</th><th>MONTH ACTUAL</th><th>ACHIEVEMENT</th><th>STATUS</th>
+              <th>MONTH TARGET</th><th>MONTH ACTUAL</th><th>ACHIEVEMENT</th><th>STATUS</th><th></th>
             </tr></thead>
             <tbody id="kpiEditor"></tbody>
           </table>
@@ -1873,8 +1873,20 @@ function switchChannel(ch){
  setGlobalChannelSelector();setChannelSelectors();renderKpis();renderKpiEditor();renderIndustryAllocation();renderContent();renderPaidCampaigns();applyReviewData();renderChannels();updateOverviewChart();;generateAutoInsights(false)
  document.getElementById("kpiChannelTitle").textContent=`${ch} — ${monthLabel(currentMonth)}`;;const cds=document.getElementById("contentDataSource");if(cds)cds.textContent=`Data source: Supabase · ${ch} · ${monthLabel(currentMonth)}`
 }
+/* FIX: "overviewKpiSelect" (the KPI dropdown next to the Weekly Performance chart
+   on Overview) had a <select> in the HTML but nothing ever populated its <option>
+   list — it was always empty, so the trend chart silently ignored the dropdown and
+   always fell back to "Reach". populateOverviewKpiSelect() fills it from the current
+   kpiData and is also what keeps it in sync whenever a KPI is added/removed below. */
+function populateOverviewKpiSelect(){
+ const el=document.getElementById("overviewKpiSelect");if(!el)return;
+ const keep=el.value;
+ el.innerHTML=kpiData.map(k=>`<option value="${escapeHtml(k.name)}">${escapeHtml(k.name)}</option>`).join("");
+ el.value=kpiData.some(k=>k.name===keep)?keep:(kpiData[0]?.name||"");
+}
 function renderKpis(){
  const el=document.getElementById("kpis");if(el)el.innerHTML=kpiData.map(k=>{const v=monthlyValues(k),p=achievement(k);return `<div class="card"><div class="kpi-title">${escapeHtml(k.name)}<span class="badge ${status(p)}">${Math.round(p)}%</span></div><div class="kpi-value">${fmt(v.actual,k.unit)}</div><div class="kpi-meta">Target: ${fmt(v.target,k.unit)} · <strong>${label(p)}</strong></div></div>`}).join("");
+ populateOverviewKpiSelect();
  updateOverviewChart()
 }
 function renderKpiEditor(){
@@ -1890,6 +1902,7 @@ function renderKpiEditor(){
   <td class="month-summary"><strong>${fmt(v.actual,k.unit)}</strong><span style="font-size:10px;color:var(--muted)">${actualLocked?"🔒 ":""}Actual</span></td>
   <td class="achievement-cell"><strong>${Math.round(p)}%</strong></td>
   <td class="kpi-row-status"><span class="badge ${status(p)}">${label(p)}</span></td>
+  <td><button class="small-action" title="Xoá KPI này khỏi ${escapeHtml(currentChannel)} — ${escapeHtml(monthLabel(currentMonth))}" onclick="deleteKpiRow(${i})">🗑 Xoá</button></td>
  </tr>`}).join("");
 }
 function updateWeeklyKpi(i,wi,type,value){
@@ -1934,6 +1947,35 @@ function addKpiRow(){
   allocation.industries.forEach((r,i)=>{r.weight=i===n-1?Number(rem.toFixed(2)):base;rem-=base});
  }
  renderKpiEditor();renderKpis();renderIndustryAllocation();saveKpiDraft();setDatabaseStatus("unsaved","warn");
+}
+/* NEW: KPI Management previously had no way to remove a row — every channel was
+   permanently stuck with the same 8 default KPIs, even though different campaigns
+   /channels need different KPI sets. deleteKpiRow() removes one row and keeps every
+   dependent piece of UI in sync: the weekly editor, the Overview KPI cards + trend
+   chart dropdown, the Industry KPI Allocation panel (which is keyed off kpiData by
+   index), and kpiLocks (which is a parallel array indexed the same way as kpiData —
+   it has to be spliced at the same position or a lock meant for one KPI would end up
+   silently applying to a different KPI after the row shifts up).
+   Campaign Planning's "KPI liên kết" column stores a text snapshot of the KPI name
+   at the moment a Campaign was saved, not a live link — so existing Campaigns keep
+   showing their KPI name correctly after this deletion; only the picker for *new*
+   Campaigns stops offering the deleted KPI (it's rebuilt from kpiData each time the
+   Campaign form opens). */
+function deleteKpiRow(i){
+ if(!kpiData[i])return;
+ if(kpiLocks.targetSubmitted||kpiLocks.actualSubmitted||isKpiRowFullyLocked(i)){
+  showToast("KPI này đã bị khóa (Target/Actual đã Submit). Hãy Unlock / Edit bằng mật khẩu trước khi xoá.");
+  return;
+ }
+ const name=kpiData[i].name||"KPI này";
+ const linkedCount=Array.isArray(campaignPlan)?campaignPlan.filter(c=>c.kpiName===name).length:0;
+ const linkedNote=linkedCount?`\n\nLưu ý: ${linkedCount} Campaign đang ghi tên KPI này — dữ liệu Campaign sẽ không bị xoá hay đổi, chỉ không còn chọn được KPI này cho Campaign mới.`:"";
+ if(!confirm(`Xoá KPI "${name}" khỏi ${currentChannel} — ${monthLabel(currentMonth)}?\nToàn bộ Target/Actual theo tuần đã nhập cho KPI này sẽ mất.${linkedNote}`))return;
+ kpiData.splice(i,1);
+ if(Array.isArray(kpiLocks.targets))kpiLocks.targets.splice(i,1);
+ if(Array.isArray(kpiLocks.actuals))kpiLocks.actuals.splice(i,1);
+ renderKpiEditor();renderKpis();renderIndustryAllocation();saveKpiDraft();setDatabaseStatus("unsaved","warn");
+ showToast(`Đã xoá KPI "${name}". Nhớ bấm Save KPI Plan để lưu lại lên Supabase.`);
 }
 async function submitKpiTargets(){
  if(!confirm("Xác nhận chốt toàn bộ Target của tháng và kênh này? Sau khi chốt sẽ không thể sửa nếu không có mật khẩu."))return;
