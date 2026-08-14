@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Digital Performance Dashboard v11.2 · Supabase</title>
+<title>Amoralic Digital Performance Dashboard v12.0 · Supabase</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -162,7 +162,7 @@ td strong{font-weight:700}
 <body>
 <div class="app">
   <aside class="sidebar">
-    <div class="brand">DIGITAL <span>OS</span><div id="agencyBrand" style="font-size:10px;font-weight:500;letter-spacing:.02em;margin-top:4px;color:#8b9099">Agency: —</div></div>
+    <div class="brand">AMORALIC <span>DIGITAL</span><div id="agencyBrand" style="font-size:10px;font-weight:500;letter-spacing:.02em;margin-top:4px;color:#8b9099">Agency: —</div></div>
     <nav class="nav" id="mainNav">
       <a class="active" href="#overview" data-page="overview">Overview</a>
       <a href="#kpi" data-page="kpi">KPI Management</a>
@@ -171,7 +171,7 @@ td strong{font-weight:700}
       <a href="#paid" data-page="paid">Paid Media</a>
       <a href="#review" data-page="review">Nghiệm thu tháng</a>
     </nav>
-    <div class="sidebar-bottom">Digital Performance<br>Management System · v10.0</div>
+    <div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v12.0</div>
   </aside>
 
   <main class="main">
@@ -180,7 +180,7 @@ td strong{font-weight:700}
     <section class="page active" id="page-overview">
       <div class="topbar">
         <div>
-          <h1>Digital Performance Dashboard</h1>
+          <h1>Amoralic Digital Performance Dashboard</h1>
           <div class="subtitle">Monthly performance · Plan vs Actual · August 2026</div>
         </div>
         <div class="filters">
@@ -291,7 +291,7 @@ td strong{font-weight:700}
     <!-- CHANNELS -->
     <section class="page" id="page-channels">
       <div class="page-head">
-        <div><h2>Channel Performance</h2><p>So sánh hiệu quả giữa các social channel.</p></div>
+        <div><h2>Channel Performance</h2><p>So sánh KPI của từng channel và liên kết trực tiếp Paid Media: Spend → Leads → CPL → ROAS.</p></div>
         <div class="action-row"><button onclick="showToast('Channel filters ready')">Filter</button><button class="primary" onclick="showToast('Channel data saved')">Save Changes</button></div>
       </div>
       <div class="grid-2">
@@ -303,7 +303,7 @@ td strong{font-weight:700}
       </div>
       <div class="section-title"><h2>Monthly Channel Review</h2><span>Plan vs Actual</span></div>
       <div class="card table-card"><table>
-        <thead><tr><th>Channel</th><th>Target</th><th>Actual</th><th>Achievement</th><th>Growth</th><th>Status</th></tr></thead>
+        <thead><tr><th>Channel</th><th>Target</th><th>Actual</th><th>Achievement</th><th>Paid Spend</th><th>Paid Leads</th><th>Paid CPL</th><th>ROAS</th><th>Status</th></tr></thead>
         <tbody id="channelTable"></tbody>
       </table></div>
     </section>
@@ -312,7 +312,7 @@ td strong{font-weight:700}
     <section class="page" id="page-paid">
       <div class="page-head">
         <div><h2>Paid Media</h2><p>Quản lý từng Campaign quảng cáo và đo hiệu quả ngân sách: Spend → Traffic → Lead → Conversion → Revenue.</p></div>
-        <div class="action-row"><button onclick="showToast('Paid Media chỉ dành cho hoạt động quảng cáo trả phí; mỗi campaign được lưu riêng.')">Giải thích</button><button onclick="resetPaidForm()">+ Add Campaign</button><button class="primary" onclick="saveAllData(true)">Lưu Paid Media</button></div>
+        <div class="action-row"><button onclick="showToast('Paid Media chỉ dành cho hoạt động quảng cáo trả phí; mỗi campaign được lưu riêng.')">Giải thích</button><button onclick="resetPaidForm()">+ Add Campaign</button><button class="primary" onclick="savePaidMediaPage()">Lưu Paid Media</button></div>
       </div>
       <div class="card paid-explainer">
         <strong>Paid Media = hiệu quả của tiền quảng cáo.</strong> Không dùng để thay thế KPI của kênh. Mỗi Campaign có ngân sách, chi tiêu, traffic và conversion riêng; hệ thống tự tính CTR, CPC, CPM, CPL, Conversion Rate, ROAS và mức hoàn thành Lead.
@@ -377,10 +377,10 @@ td strong{font-weight:700}
         <div class="action-row"><button onclick="exportExcel()">Xuất Excel</button><button class="primary" onclick="saveAllData(true)">Lưu nghiệm thu</button></div>
       </div>
       <div class="review-grid">
-        <div class="card review-card"><h3>01 · Điều gì đã xảy ra?</h3><textarea id="reviewWhat" style="width:100%;min-height:130px;border:1px solid var(--line);border-radius:9px;padding:10px">Engagement and video views exceeded plan. Reach and leads remained below target.</textarea></div>
-        <div class="card review-card"><h3>02 · Vì sao?</h3><textarea id="reviewWhy" style="width:100%;min-height:130px;border:1px solid var(--line);border-radius:9px;padding:10px">Short video formats performed well, while conversion content had weaker CTA and lower lead efficiency.</textarea></div>
-        <div class="card review-card"><h3>03 · Chúng ta học được gì?</h3><textarea id="reviewLearned" style="width:100%;min-height:130px;border:1px solid var(--line);border-radius:9px;padding:10px">Audience responds better to concise video storytelling and practical content.</textarea></div>
-        <div class="card review-card"><h3>04 · Hành động tháng tới?</h3><textarea id="reviewNext" style="width:100%;min-height:130px;border:1px solid var(--line);border-radius:9px;padding:10px">Increase short-video mix to 50%, strengthen CTA testing, and shift paid budget to lower-CPL campaigns.</textarea></div>
+        <div class="card review-card"><h3>01 · Điều gì đã xảy ra?</h3><textarea id="reviewWhat" style="width:100%;min-height:130px;border:1px solid var(--line);border-radius:9px;padding:10px" placeholder="Ví dụ: Engagement và Video Views vượt kế hoạch; Reach và Leads chưa đạt Target."></textarea></div>
+        <div class="card review-card"><h3>02 · Vì sao?</h3><textarea id="reviewWhy" style="width:100%;min-height:130px;border:1px solid var(--line);border-radius:9px;padding:10px" placeholder="Ví dụ: Short video hoạt động tốt nhưng CTA chuyển đổi chưa hiệu quả."></textarea></div>
+        <div class="card review-card"><h3>03 · Chúng ta học được gì?</h3><textarea id="reviewLearned" style="width:100%;min-height:130px;border:1px solid var(--line);border-radius:9px;padding:10px" placeholder="Ví dụ: Nhóm Audience phản hồi tốt hơn với nội dung video ngắn."></textarea></div>
+        <div class="card review-card"><h3>04 · Hành động tháng tới?</h3><textarea id="reviewNext" style="width:100%;min-height:130px;border:1px solid var(--line);border-radius:9px;padding:10px" placeholder="Ví dụ: Tăng tỷ trọng short video và phân bổ Paid Media cho campaign có CPL tốt."></textarea></div>
       </div>
       <div class="section-title"><h2>Kết luận quản trị</h2><span>Tổng quan hiệu quả Digital</span></div>
       <div class="card">
@@ -390,7 +390,7 @@ td strong{font-weight:700}
       </div>
     </section>
 
-    <div class="footer">Digital Performance Management System · Plan → Actual → Achievement → Insight → Action</div>
+    <div class="footer">Amoralic Digital Performance System · Plan → Actual → Achievement → Insight → Action</div>
   </main>
 </div>
 
@@ -574,17 +574,52 @@ async function unlockKpiEdit(){
   showToast("Không kiểm tra được mật khẩu Supabase: "+(e?.message||e?.code||"unknown error"));
  }
 }
-function saveKpis(){saveAllData(true)}
+async function saveKpis(){
+ const ok=await saveAllData(true);
+ if(!ok)showToast("KPI chưa được lưu. Kiểm tra thông báo Supabase.");
+}
 
 function addChannel(){
  const name=prompt("Tên Digital Channel mới:");if(!name)return;
  if(!channels.includes(name)){channels.push(name);channelData[name]={kpis:clone(DEFAULT_KPIS),locks:normalizeLocks({},DEFAULT_KPIS.length),contents:[],paid:{campaigns:[]},review:{}};setGlobalChannelSelector();setChannelSelectors();currentChannel=name;switchChannel(name);saveAllData(true)}
 }
 function renderChannels(){
- const table=document.getElementById("channelTable");if(table)table.innerHTML=channels.map(ch=>{const d=channelData[ch]||{},ks=d.kpis||[],avg=ks.length?ks.reduce((s,k)=>s+achievement(k),0)/ks.length:0;return `<tr><td><strong>${escapeHtml(ch)}</strong></td><td>${ks.length}</td><td><strong>${Math.round(avg)}%</strong></td><td><span class="badge ${status(avg)}">${label(avg)}</span></td></tr>`}).join("");
- const score=document.getElementById("channelScore");if(score)score.innerHTML=channels.map(ch=>{const d=channelData[ch]||{},ks=d.kpis||[],avg=ks.length?ks.reduce((s,k)=>s+achievement(k),0)/ks.length:0;return `<div style="margin:0 0 15px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><strong>${escapeHtml(ch)}</strong><span>${Math.round(avg)}%</span></div><div class="progress"><i style="width:${Math.min(avg/1.6,100)}%"></i></div></div>`}).join("");
-}
-function renderContent(){
+ const table=document.getElementById("channelTable");
+ const channelRows=channels.map(ch=>{
+  const d=channelData[ch]||{}, ks=(d.kpis||[]).map(normalizeKpi);
+  const avg=ks.length?ks.reduce((sum,k)=>sum+achievement(k),0)/ks.length:0;
+  const campaigns=Array.isArray(d.paid?.campaigns)?d.paid.campaigns.map(normalizeCampaign):[];
+  const spend=campaigns.reduce((sum,c)=>sum+safeNum(c.spend),0);
+  const leads=campaigns.reduce((sum,c)=>sum+safeNum(c.actualLeads),0);
+  const revenue=campaigns.reduce((sum,c)=>sum+safeNum(c.revenue),0);
+  const cpl=leads?spend/leads:0;
+  const roas=spend?revenue/spend:0;
+  return {ch,avg,spend,leads,cpl,roas};
+ });
+ if(table)table.innerHTML=channelRows.map(r=>`<tr>
+  <td><strong>${escapeHtml(r.ch)}</strong></td>
+  <td>${Math.round(r.avg)}%</td>
+  <td>${Math.round(r.avg)}%</td>
+  <td><strong>${Math.round(r.avg)}%</strong></td>
+  <td>${r.spend?fmt(r.spend,"₫"):"—"}</td>
+  <td>${r.leads?fmt(r.leads):"—"}</td>
+  <td>${r.cpl?fmt(r.cpl,"₫"):"—"}</td>
+  <td>${r.roas?r.roas.toFixed(2)+"x":"—"}</td>
+  <td><span class="badge ${status(r.avg)}">${label(r.avg)}</span></td>
+ </tr>`).join("");
+
+ const score=document.getElementById("channelScore");
+ if(score)score.innerHTML=channelRows.map(r=>`<div style="margin:0 0 15px">
+  <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+   <strong>${escapeHtml(r.ch)}</strong>
+   <span>${Math.round(r.avg)}% KPI · ${r.spend?fmt(r.spend,"₫"):"0₫"} Paid</span>
+  </div>
+  <div class="progress"><i style="width:${Math.min(r.avg/1.6,100)}%"></i></div>
+  <div style="font-size:10px;color:var(--muted);margin-top:5px">
+   ${r.leads?fmt(r.leads)+" Paid Leads":"No Paid Leads"} · ${r.cpl?fmt(r.cpl,"₫")+" CPL":"No CPL"} · ${r.roas?r.roas.toFixed(2)+"x ROAS":"No ROAS"}
+  </div>
+ </div>`).join("");
+}function renderContent(){
  const table=document.getElementById("contentTable");if(!table)return;
  table.innerHTML=contents.map((c,i)=>`<tr><td><strong>${i+1}</strong></td><td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.audience||"—")}</td><td><span class="badge blue">${escapeHtml(c.pillar)}</span></td><td>${escapeHtml(c.channel)}</td><td>${fmt(c.reach)}</td><td>${fmt(c.engagement)}</td><td><strong>${safeNum(c.er).toFixed(2)}%</strong></td><td>${fmt(c.views)}</td><td>${fmt(c.leads)}</td><td>${c.cpl?fmt(c.cpl,"₫"):"—"}</td><td><span class="badge ${c.leads>0||c.engagement>0?"good":"warn"}">${c.leads>0||c.engagement>0?"RECORDED":"CHECK"}</span></td><td><div class="content-row-actions"><button class="small-action" onclick="editContent(${i})">Edit</button><button class="small-action" onclick="deleteContent(${i})">Delete</button></div></td></tr>`).join("");
 }
@@ -686,8 +721,31 @@ function updateOverviewChart(){
  if(charts.channel){charts.channel.data.labels=channels;charts.channel.data.datasets[0].data=channels.map(ch=>{const ks=channelData[ch]?.kpis||[];return ks.length?Math.round(ks.reduce((s,x)=>s+achievement(x),0)/ks.length):0});charts.channel.update()}
  if(charts.channelPage){charts.channelPage.data.labels=channels;charts.channelPage.data.datasets[0].data=channels.map(ch=>{const ks=channelData[ch]?.kpis||[];return ks.length?Math.round(ks.reduce((s,x)=>s+achievement(x),0)/ks.length):0});charts.channelPage.update()}
 }
+function collectReviewData(){
+ const read=id=>document.getElementById(id)?.value||"";
+ window.reviewData={
+  what:read("reviewWhat"),
+  why:read("reviewWhy"),
+  learned:read("reviewLearned"),
+  next:read("reviewNext")
+ };
+}
+function markReviewUnsaved(){
+ collectReviewData();
+ setDatabaseStatus("unsaved","warn");
+}
 function applyReviewData(){
- const r=window.reviewData||{};["what","why","learned","next"].forEach(k=>{const id="review"+k.charAt(0).toUpperCase()+k.slice(1),e=document.getElementById(id);if(e)e.value=r[k]||""})
+ const r=window.reviewData||{};
+ const values={
+  reviewWhat:r.what||"",
+  reviewWhy:r.why||"",
+  reviewLearned:r.learned||"",
+  reviewNext:r.next||""
+ };
+ Object.entries(values).forEach(([id,v])=>{
+  const e=document.getElementById(id);
+  if(e)e.value=v;
+ });
 }
 function exportExcel(){
  if(typeof XLSX==="undefined"){showToast("Thư viện Excel chưa tải xong");return}
@@ -731,6 +789,10 @@ window.addEventListener("hashchange",()=>navigate(location.hash.replace("#","")|
 document.getElementById("kpiMonthPicker")?.addEventListener("change",async e=>{currentMonth=e.target.value;document.getElementById("month").value=currentMonth;await loadMonthData()});
 document.getElementById("kpiChannelPicker")?.addEventListener("change",e=>switchChannel(e.target.value));
 document.getElementById("agencyPicker")?.addEventListener("change",e=>changeAgency(e.target.value));
+["reviewWhat","reviewWhy","reviewLearned","reviewNext"].forEach(id=>{
+ const e=document.getElementById(id);
+ if(e)e.addEventListener("input",markReviewUnsaved);
+});
 document.querySelector(".agency-label")?.addEventListener("dblclick",addAgency);
 document.getElementById("channel")?.addEventListener("change",e=>{if(e.target.value!=="All Channels"){currentChannel=e.target.value;switchChannel(currentChannel)}});
 document.getElementById("month")?.addEventListener("change",async e=>{currentMonth=e.target.value;const p=document.getElementById("kpiMonthPicker");if(p)p.value=currentMonth;await loadMonthData()});
@@ -911,6 +973,14 @@ function updatePaidCalc(){
  set("paidCalcCTR",m.ctr.toFixed(2)+"%");set("paidCalcCPC",m.cpc?fmt(m.cpc,"₫"):"—");set("paidCalcCPM",m.cpm?fmt(m.cpm,"₫"):"—");set("paidCalcCPL",m.cpl?fmt(m.cpl,"₫"):"—");set("paidCalcCVR",m.cvr.toFixed(2)+"%");set("paidCalcROAS",m.roas?m.roas.toFixed(2)+"x":"—");set("paidCalcLeadAch",m.leadAch?Math.round(m.leadAch)+"%":"0%");set("paidCalcBudgetUsage",m.budgetUsage.toFixed(1)+"%");
  if(charts.paid){charts.paid.data.datasets[0].data=[c.spend,Math.max(0,c.budgetTarget-c.spend)];charts.paid.update()}
 }
+async function savePaidMediaPage(){
+ const campaignName=document.getElementById("paidCampaign")?.value.trim()||"";
+ if(campaignName){
+  await savePaidCampaign();
+ }else{
+  await saveAllData(true);
+ }
+}
 async function savePaidCampaign(){
  const c=getPaidCampaignForm();if(!c.campaign.trim()){showToast("Vui lòng nhập tên Campaign");return}
  if(window.editingPaidIndex!=null)paidCampaigns[window.editingPaidIndex]=c;else paidCampaigns.push(c);
@@ -923,6 +993,7 @@ async function saveAllData(showMessage=true){
  if(!supabaseInitialized||!supabaseClient){showToast("Supabase chưa sẵn sàng");return false}
  try{
   ensureChannelData();
+  collectReviewData();
   const payload={
    kpis:clone(kpiData),
    locks:clone(kpiLocks),
