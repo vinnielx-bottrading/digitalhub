@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AMORALIC Digital Performance System · v14.1</title>
+<title>AMORALIC Digital Performance System · v14.2</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -1302,6 +1302,44 @@ html[data-am-theme="dark"] .primary{
   .auto-insight-btn{width:100%}
 }
 
+
+.planner-reminder{
+  position:fixed;
+  left:50%;
+  bottom:18px;
+  transform:translateX(-50%) translateY(0);
+  z-index:800;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 13px;
+  border:1px solid rgba(195,165,93,.35);
+  border-radius:999px;
+  background:rgba(250,247,238,.94);
+  color:#5E5748;
+  box-shadow:0 5px 16px rgba(80,65,35,.10);
+  backdrop-filter:blur(8px);
+  font-size:11.5px;
+  pointer-events:none;
+  opacity:1;
+  transition:opacity .3s ease,transform .3s ease;
+}
+.planner-reminder-icon{
+  width:19px;height:19px;border-radius:50%;
+  display:grid;place-items:center;
+  background:#C3A55D;color:white;font-weight:800;font-size:11px;
+}
+.planner-reminder strong{font-weight:800;color:#7C6738}
+.planner-reminder.is-hidden{opacity:0;transform:translateX(-50%) translateY(14px)}
+@media(max-width:768px){
+ .planner-reminder{left:14px;right:14px;bottom:12px;transform:none;justify-content:center;text-align:center}
+ .planner-reminder.is-hidden{transform:translateY(14px)}
+}
+
+
+.chart-card{min-height:330px!important}
+.chart-card canvas{width:100%!important;height:270px!important;display:block!important}
+
 </style>
 <!-- Supabase schema: use digital_dashboard_supabase_setup.sql supplied with this dashboard. -->
 </head>
@@ -1327,10 +1365,17 @@ html[data-am-theme="dark"] .primary{
   <button type="button" class="am-theme-btn am-theme-dark" data-theme="dark" title="Pastel Grey Black" aria-label="Pastel Grey Black"></button>
 </div>
 
-<div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v14.1</div>
+<div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v14.2</div>
   </aside>
 
   <main class="main">
+
+<div id="plannerReminder" class="planner-reminder" role="status" aria-live="polite">
+  <span class="planner-reminder-icon">!</span>
+  <strong>Digital Planner</strong>
+  <span id="plannerReminderText">Nhắc việc: cập nhật đủ KPI · Content · Campaign và Paid Media trước khi Submit.</span>
+</div>
+
 
     <!-- OVERVIEW -->
     <section class="page active" id="page-overview">
@@ -1793,7 +1838,7 @@ async function loadIndustrySettings(){
   setIndustrySelectors();
  }
 }
-async function saveIndustrySettings(){
+async function saveIndustrySettings(){if(demoMode){showToast("Đang ở chế độ Demo — dữ liệu minh họa không được lưu.");return false}
  if(!supabaseInitialized||!supabaseClient){showToast("Supabase chưa sẵn sàng");return false}
  try{
   const {error}=await supabaseClient.from("digital_dashboard_settings").upsert({
@@ -2048,7 +2093,7 @@ async function unlockKpiEdit(){
   showToast("Không kiểm tra được mật khẩu Supabase: "+(e?.message||e?.code||"unknown error"));
  }
 }
-async function saveKpis(){
+async function saveKpis(){if(demoMode){showToast("Đang ở chế độ Demo — dữ liệu minh họa không được lưu.");return false}
  const ok=await saveAllData(true);
  if(!ok)showToast("KPI chưa được lưu. Kiểm tra thông báo Supabase.");
 }
@@ -2107,7 +2152,7 @@ function calcContentMetrics(){
  document.getElementById("newContentER").value=reach?(eng/reach*100).toFixed(2)+"%":"";
  document.getElementById("newContentCPL").value=leads?fmt(spend/leads,"₫"):"";
 }
-async function saveContentPage(){
+async function saveContentPage(){if(demoMode){showToast("Đang ở chế độ Demo — dữ liệu minh họa không được lưu.");return false}
  if(!supabaseInitialized||!supabaseClient){
   showToast("Supabase chưa sẵn sàng");
   return false;
@@ -2154,7 +2199,7 @@ async function saveContentPage(){
   return false;
  }
 }
-async function saveNewContent(){
+async function saveNewContent(){if(demoMode){showToast("Đang ở chế độ Demo — dữ liệu minh họa không được lưu.");return false}
  const name=document.getElementById("newContentName")?.value.trim();
  if(!name){showToast("Vui lòng nhập Content Name");return}
  const targetChannel=document.getElementById("newContentChannel")?.value||currentChannel;
@@ -2239,11 +2284,55 @@ function makeCharts(){
  const chp=document.getElementById("channelChartPage");if(chp)charts.channelPage=new Chart(chp,{type:"bar",data:{labels:channels,datasets:[{label:"Achievement %",data:channels.map(()=>0)}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{y:{beginAtZero:true}}}});
  const paid=document.getElementById("paidChart");if(paid)charts.paid=new Chart(paid,{type:"doughnut",data:{labels:["Media Spend","Remaining"],datasets:[{data:[96,4]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}}}});
 }
-function updateOverviewChart(){
- const name=document.getElementById("overviewKpiSelect")?.value||"Reach",k=kpiData.find(x=>x.name===name)||kpiData[0];if(k&&charts.trend){charts.trend.data.datasets[0].data=k.weekly.map(w=>safeNum(w.target));charts.trend.data.datasets[1].data=k.weekly.map(w=>safeNum(w.actual));charts.trend.update()}
- if(charts.channel){charts.channel.data.labels=channels;charts.channel.data.datasets[0].data=channels.map(ch=>{const ks=channelData[ch]?.kpis||[];return ks.length?Math.round(ks.reduce((s,x)=>s+achievement(x),0)/ks.length):0});charts.channel.update()}
- if(charts.channelPage){charts.channelPage.data.labels=channels;charts.channelPage.data.datasets[0].data=channels.map(ch=>{const ks=channelData[ch]?.kpis||[];return ks.length?Math.round(ks.reduce((s,x)=>s+achievement(x),0)/ks.length):0});charts.channelPage.update()}
+function ensureOverviewCharts(){
+  if(typeof Chart==="undefined")return;
+  const trend=document.getElementById("trendChart");
+  const channel=document.getElementById("channelChart");
+  if(trend && !charts.trend){
+    charts.trend=new Chart(trend.getContext("2d"),{
+      type:"line",
+      data:{labels:["Week 1","Week 2","Week 3","Week 4"],datasets:[
+        {label:"Target",data:[0,0,0,0],borderWidth:2,tension:.35,fill:false},
+        {label:"Actual",data:[0,0,0,0],borderWidth:2,tension:.35,fill:false}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{y:{beginAtZero:true}}}
+    });
+  }
+  if(channel && !charts.channel){
+    charts.channel=new Chart(channel.getContext("2d"),{
+      type:"bar",
+      data:{labels:channels,datasets:[{label:"Achievement %",data:[],borderWidth:1}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:140}}}
+    });
+  }
 }
+function updateOverviewChart(){
+ ensureOverviewCharts();
+ const name=document.getElementById("overviewKpiSelect")?.value||"Reach";
+ const k=kpiData.find(x=>x.name===name)||kpiData[0];
+ if(k&&charts.trend){
+   charts.trend.data.datasets[0].data=k.weekly.map(w=>safeNum(w.target));
+   charts.trend.data.datasets[1].data=k.weekly.map(w=>safeNum(w.actual));
+   charts.trend.update();
+ }
+ if(charts.channel){
+   charts.channel.data.labels=channels;
+   charts.channel.data.datasets[0].data=channels.map(ch=>{
+     const ks=(channelData[ch]?.kpis||[]).map(normalizeKpi);
+     return ks.length?Math.round(ks.reduce((sum,x)=>sum+achievement(x),0)/ks.length):0;
+   });
+   charts.channel.update();
+ }
+ if(charts.channelPage){
+   charts.channelPage.data.labels=channels;
+   charts.channelPage.data.datasets[0].data=channels.map(ch=>{
+     const ks=(channelData[ch]?.kpis||[]).map(normalizeKpi);
+     return ks.length?Math.round(ks.reduce((sum,x)=>sum+achievement(x),0)/ks.length):0;
+   });
+   charts.channelPage.update();
+ }
+}
+
 function collectReviewData(){
  const read=id=>document.getElementById(id)?.value||"";
  window.reviewData={
@@ -2405,7 +2494,7 @@ function addCampaign(){
  ["campName","campTarget","campBudget","campStart","campEnd","campOwner","campNote"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});
  renderCampaignPlan();populateCampaignSelectors();setDatabaseStatus("unsaved","warn");
 }
-async function saveCampaignSettings(){
+async function saveCampaignSettings(){if(demoMode){showToast("Đang ở chế độ Demo — dữ liệu minh họa không được lưu.");return false}
  if(!supabaseInitialized||!supabaseClient){showToast("Supabase chưa sẵn sàng");return false}
  try{
   const {error}=await supabaseClient.from("digital_dashboard_settings").upsert({
@@ -2626,6 +2715,14 @@ async function generateAutoInsights(showToastMessage=false){
   }
   return insights;
 }
+
+function updatePlannerReminder(){
+ const el=document.getElementById("plannerReminder");if(!el)return;
+ const threshold=Math.max(600,document.documentElement.scrollHeight*0.18);
+ el.classList.toggle("is-hidden",window.scrollY>threshold);
+}
+window.addEventListener("scroll",updatePlannerReminder,{passive:true});
+window.addEventListener("resize",updatePlannerReminder);
 function navigate(page){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));const target=document.getElementById("page-"+page)||document.getElementById("page-overview");target.classList.add("active");if(page==="campaigns"){setCampaignPlanSelectors();renderCampaignPlan()}populateCampaignSelectors();document.querySelectorAll("#mainNav a").forEach(a=>a.classList.toggle("active",a.dataset.page===page));if(location.hash!=="#"+page)history.replaceState(null,"","#"+page);closeMobileNav();window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll("#mainNav a").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();navigate(a.dataset.page)}));
 window.addEventListener("hashchange",()=>navigate(location.hash.replace("#","")||"overview"));
@@ -2834,7 +2931,7 @@ async function savePaidMediaPage(){
   await saveAllData(true);
  }
 }
-async function savePaidCampaign(){
+async function savePaidCampaign(){if(demoMode){showToast("Đang ở chế độ Demo — dữ liệu minh họa không được lưu.");return false}
  const c=getPaidCampaignForm();
  if(!c.campaignId){showToast("Hãy chọn Campaign từ Campaign Planning.");return}
  if(window.editingPaidIndex!=null)paidCampaigns[window.editingPaidIndex]=c;else paidCampaigns.push(c);
@@ -2936,7 +3033,7 @@ window.addEventListener("load",()=>{
  const m=document.getElementById("month")?.value||"2026-08";
  currentMonth=m;
  const p=document.getElementById("kpiMonthPicker");if(p)p.value=m;
- setGlobalChannelSelector();setChannelSelectors();setIndustrySelectors();setAgencySelectors();setCampaignPlanSelectors();populateCampaignSelectors();renderCampaignPlan();renderIndustryAllocation();
+ setGlobalChannelSelector();setChannelSelectors();setIndustrySelectors();setAgencySelectors();setCampaignPlanSelectors();populateCampaignSelectors();renderCampaignPlan();renderIndustryAllocation();ensureOverviewCharts();updatePlannerReminder();
 });
 </script>
 
