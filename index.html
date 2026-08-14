@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Amoralic Digital Performance Dashboard v12.2 · Supabase</title>
+<title>Amoralic Digital Performance Dashboard v13.1 · Supabase</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -156,6 +156,23 @@ td strong{font-weight:700}
 .paid-metric span{display:block;color:var(--muted);font-size:10px;margin-bottom:5px}.paid-metric strong{font-size:18px}
 @media(max-width:1100px){.paid-metric-grid{grid-template-columns:repeat(2,1fr)}}
 
+
+.industry-planner{margin-top:12px}
+.industry-toolbar{display:grid;grid-template-columns:1.4fr .9fr auto auto auto;gap:10px;align-items:end}
+.industry-total{display:flex;gap:18px;align-items:center;flex-wrap:wrap;padding:10px 12px;background:#f8f9fb;border:1px solid var(--line);border-radius:9px;margin:12px 0;font-size:12px}
+.industry-total strong{font-size:16px}
+.industry-table{width:100%;border-collapse:collapse;min-width:760px}
+.industry-table th,.industry-table td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:12px}
+.industry-table th{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:.04em}
+.industry-table input,.industry-table select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:7px;background:#fff}
+.industry-weight{max-width:110px}
+.industry-actual{max-width:130px}
+.industry-target{font-weight:700;white-space:nowrap}
+.industry-warning{color:#b54708;font-size:11px}
+.industry-ok{color:#087f5b;font-size:11px}
+.industry-actions{display:flex;gap:6px;flex-wrap:wrap}
+@media(max-width:1000px){.industry-toolbar{grid-template-columns:1fr 1fr}.industry-toolbar button{width:100%}}
+
 </style>
 <!-- Supabase schema: use digital_dashboard_supabase_setup.sql supplied with this dashboard. -->
 </head>
@@ -171,7 +188,7 @@ td strong{font-weight:700}
       <a href="#paid" data-page="paid">Paid Media</a>
       <a href="#review" data-page="review">Nghiệm thu tháng</a>
     </nav>
-    <div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v12.2</div>
+    <div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v13.1</div>
   </aside>
 
   <main class="main">
@@ -228,6 +245,31 @@ td strong{font-weight:700}
         <div class="kpi-lock-note"><strong>Cơ chế nhập liệu:</strong> dữ liệu được ghi nhận ngay khi bạn gõ và giữ bản nháp trên trình duyệt. <strong>Không tự khóa khi nhập.</strong> Chỉ Submit Target / Submit Actual mới khóa số liệu tương ứng. Muốn sửa số đã khóa phải dùng mật khẩu quản trị.</div>
       </div>
 
+
+      <div class="card industry-planner">
+        <div class="section-title" style="margin-top:0">
+          <div><h2>Industry KPI Allocation</h2><span>Phân bổ KPI theo ngành hàng / business unit</span></div>
+          <span>Digital Planner</span>
+        </div>
+        <div class="history-note">
+          <strong>Nguyên tắc:</strong> KPI tổng là 100%. Digital Planner có thể chia đều hoặc tùy biến tỷ trọng cho từng ngành hàng. Target ngành hàng = KPI Target tháng × tỷ trọng. Actual ngành hàng dùng để đối chiếu hiệu quả từng ngành mà không làm mất KPI tổng.
+        </div>
+        <div class="industry-toolbar">
+          <div class="field"><label>KPI cần phân bổ</label><select id="industryKpiSelect" onchange="renderIndustryAllocation()"></select></div>
+          <div class="field"><label>Cách phân bổ</label><select id="industryAllocationMode" onchange="setIndustryAllocationMode(this.value)"><option value="equal">Chia đều</option><option value="custom">Tùy biến</option></select></div>
+          <button onclick="addIndustry()">+ Add Industry</button>
+          <button onclick="equalIndustryWeights()">Chia đều 100%</button>
+          <button class="primary" onclick="saveIndustryAllocation()">Save Allocation</button>
+        </div>
+        <div class="industry-total" id="industryAllocationSummary"></div>
+        <div class="weekly-wrap">
+          <table class="industry-table">
+            <thead><tr><th>Industry / Ngành hàng</th><th>Weight %</th><th>Month Target</th><th>Month Actual</th><th>Achievement</th><th>Status</th><th></th></tr></thead>
+            <tbody id="industryAllocationTable"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="card channel-section">
         <div class="section-title" style="margin-top:0">
           <h2 id="kpiChannelTitle">Facebook — August 2026</h2>
@@ -258,6 +300,7 @@ td strong{font-weight:700}
         <div class="content-form-grid">
           <div class="field"><label>Content Name</label><input id="newContentName" placeholder="Ví dụ: Reel Product Story"></div>
           <div class="field target-audience-field"><label>Target Audience</label><input id="newContentAudience" placeholder="Ví dụ: Nữ 25–34, HCM, quan tâm lifestyle"></div>
+          <div class="field"><label>Industry / Ngành hàng</label><select id="newContentIndustry"></select></div>
           <div class="field"><label>Content Pillar</label><select id="newContentPillar"><option>Brand</option><option>Product</option><option>Education</option><option>Lifestyle</option><option>Campaign</option></select></div>
           <div class="field"><label>Channel</label><select id="newContentChannel"></select></div>
           <div class="field"><label>Publish Date</label><input id="newContentDate" type="date"></div>
@@ -281,7 +324,7 @@ td strong{font-weight:700}
 
       <div class="card table-card">
         <table>
-          <thead><tr><th>#</th><th>Content</th><th>Target Audience</th><th>Pillar</th><th>Channel</th><th>Reach</th><th>Engagement</th><th>ER</th><th>Views</th><th>Leads</th><th>CPL</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>Content</th><th>Target Audience</th><th>Industry</th><th>Pillar</th><th>Channel</th><th>Reach</th><th>Engagement</th><th>ER</th><th>Views</th><th>Leads</th><th>CPL</th><th>Status</th><th></th></tr></thead>
           <tbody id="contentTable"></tbody>
         </table>
       </div>
@@ -338,6 +381,7 @@ td strong{font-weight:700}
       <div class="card paid-campaign-form">
         <div class="form-grid">
           <div class="field"><label>Campaign</label><input id="paidCampaign" placeholder="August Conversion Campaign"></div>
+          <div class="field"><label>Industry / Ngành hàng</label><select id="paidIndustry"></select></div>
           <div class="field"><label>Platform</label><select id="paidPlatform"><option>Meta</option><option>TikTok</option><option>Google</option><option>Zalo</option><option>Other</option></select></div>
           <div class="field"><label>Objective</label><select id="paidObjective"><option>Conversion</option><option>Lead Generation</option><option>Traffic</option><option>Reach</option><option>Engagement</option><option>Sales</option></select></div>
           <div class="field"><label>Campaign Status</label><select id="paidCampaignStatus"><option>Planned</option><option>Running</option><option>Completed</option><option>Paused</option></select></div>
@@ -366,7 +410,7 @@ td strong{font-weight:700}
         <div class="content-actions" style="margin-top:12px"><button onclick="resetPaidForm()">Cancel</button><button class="primary" onclick="savePaidCampaign()">Save Campaign</button></div>
       </div>
       <div class="card table-card paid-campaign-table">
-        <table><thead><tr><th>#</th><th>Campaign</th><th>Platform</th><th>Objective</th><th>Budget</th><th>Spend</th><th>Leads</th><th>CPL</th><th>CTR</th><th>ROAS</th><th>Achievement</th><th>Status</th><th></th></tr></thead><tbody id="paidCampaignTable"></tbody></table>
+        <table><thead><tr><th>#</th><th>Campaign</th><th>Industry</th><th>Platform</th><th>Objective</th><th>Budget</th><th>Spend</th><th>Leads</th><th>CPL</th><th>CTR</th><th>ROAS</th><th>Achievement</th><th>Status</th><th></th></tr></thead><tbody id="paidCampaignTable"></tbody></table>
       </div>
     </section>
 
@@ -419,6 +463,8 @@ let currentMonth=document.getElementById("month")?.value||"2026-08";
 let currentChannel="Facebook";
 let currentAgency="BeeOne";
 let agencies=["BeeOne"];
+let industries=["Chưa phân loại"];
+let industrySettingsLoaded=false;
 
 function safeNum(v){const n=Number(v);return Number.isFinite(n)?n:0}
 function fmt(n,unit=""){n=safeNum(n);if(unit==="₫")return new Intl.NumberFormat("vi-VN").format(n)+"₫";if(unit==="%")return n.toLocaleString("vi-VN",{maximumFractionDigits:2})+"%";return new Intl.NumberFormat("en-US").format(n)}
@@ -429,14 +475,34 @@ function monthKey(m){return (m||currentMonth).replace(/[^a-zA-Z0-9]+/g,"_")}
 
 function normalizeKpi(k){
  const weekly=Array.isArray(k.weekly)?k.weekly:[];
- if(weekly.length===4)return {...k,weekly:weekly.map(w=>({target:safeNum(w.target),actual:safeNum(w.actual)}))};
+ const allocation=normalizeIndustryAllocation(k.allocation);
+ if(weekly.length===4)return {...k,weekly:weekly.map(w=>({target:safeNum(w.target),actual:safeNum(w.actual)})),allocation};
  const target=safeNum(k.target),actual=safeNum(k.actual);
- return {...k,weekly:[1,2,3,4].map(()=>({target:target/4,actual:actual/4}))};
+ return {...k,weekly:[1,2,3,4].map(()=>({target:target/4,actual:actual/4})),allocation};
+}
+function normalizeIndustryAllocation(a){
+ const x=a||{};
+ const list=Array.isArray(x.industries)?x.industries:[];
+ return {
+  mode:x.mode==="custom"?"custom":"equal",
+  industries:list.map((r,i)=>({
+   id:r.id||("ind-"+i+"-"+Date.now()),
+   name:String(r.name||"Chưa phân loại"),
+   weight:Math.max(0,safeNum(r.weight)),
+   actual:safeNum(r.actual)
+  }))
+ };
+}
+function kpiMonthlyTarget(k){return monthlyValues(k).target}
+function industryTargets(k){
+ const rows=k?.allocation?.industries||[];
+ const total=kpiMonthlyTarget(k);
+ return rows.map(r=>({...r,target:total*(safeNum(r.weight)/100),achievement:(total*(safeNum(r.weight)/100))>0?safeNum(r.actual)/(total*(safeNum(r.weight)/100))*100:0}));
 }
 function normalizeContents(list){
  return (Array.isArray(list)?list:[]).map((c,i)=>{
-  if(Array.isArray(c))return {id:c[0]||String(i+1),name:c[1]||"Content",audience:c[2]||"",pillar:c[3]||"Product",channel:c[4]||"Facebook",reach:safeNum(c[5]),engagement:safeNum(c[6]),er:safeNum(c[7]),views:safeNum(c[8]),leads:safeNum(c[9]),cpl:safeNum(c[10]),spend:safeNum(c[11]),date:c[12]||"",note:c[13]||""};
-  return {...c,id:c.id||String(i+1),name:c.name||"Content",audience:c.audience||"",pillar:c.pillar||"Product",channel:c.channel||"Facebook",reach:safeNum(c.reach),engagement:safeNum(c.engagement),er:safeNum(c.er),views:safeNum(c.views),leads:safeNum(c.leads),cpl:safeNum(c.cpl),spend:safeNum(c.spend),date:c.date||"",note:c.note||""};
+  if(Array.isArray(c))return {id:c[0]||String(i+1),name:c[1]||"Content",audience:c[2]||"",pillar:c[3]||"Product",channel:c[4]||"Facebook",reach:safeNum(c[5]),engagement:safeNum(c[6]),er:safeNum(c[7]),views:safeNum(c[8]),leads:safeNum(c[9]),cpl:safeNum(c[10]),spend:safeNum(c[11]),date:c[12]||"",note:c[13]||"",industry:c[14]||"Chưa phân loại"};
+  return {...c,id:c.id||String(i+1),name:c.name||"Content",audience:c.audience||"",industry:c.industry||"Chưa phân loại",pillar:c.pillar||"Product",channel:c.channel||"Facebook",reach:safeNum(c.reach),engagement:safeNum(c.engagement),er:safeNum(c.er),views:safeNum(c.views),leads:safeNum(c.leads),cpl:safeNum(c.cpl),spend:safeNum(c.spend),date:c.date||"",note:c.note||""};
  });
 }
 function monthlyValues(k){
@@ -472,6 +538,154 @@ function ensureChannelData(){
   if(!channelData[ch])channelData[ch]={kpis:clone(DEFAULT_KPIS),locks:normalizeLocks({},DEFAULT_KPIS.length),contents:[],paid:{campaigns:[]},review:{}};
  });
 }
+function normalizeIndustries(list){
+ const out=Array.isArray(list)?list.map(x=>String(x||"").trim()).filter(Boolean):[];
+ return [...new Set(out.length?out:["Chưa phân loại"])];
+}
+function setIndustrySelectors(){
+ const ids=["newContentIndustry","paidIndustry"];
+ ids.forEach(id=>{
+  const el=document.getElementById(id);if(!el)return;
+  const keep=el.value;
+  el.innerHTML=industries.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("");
+  el.value=industries.includes(keep)?keep:industries[0];
+ });
+}
+async function loadIndustrySettings(){
+ if(!supabaseInitialized||!supabaseClient)return;
+ try{
+  const {data,error}=await supabaseClient.from("digital_dashboard_settings").select("value").eq("key","industries").maybeSingle();
+  if(error)throw error;
+  if(data?.value)industries=normalizeIndustries(data.value);
+  industrySettingsLoaded=true;
+  setIndustrySelectors();
+  renderIndustryAllocation();
+ }catch(err){
+  console.warn("Industry settings read:",err);
+  setIndustrySelectors();
+ }
+}
+async function saveIndustrySettings(){
+ if(!supabaseInitialized||!supabaseClient){showToast("Supabase chưa sẵn sàng");return false}
+ try{
+  const {error}=await supabaseClient.from("digital_dashboard_settings").upsert({
+   key:"industries",value:industries,updated_at:new Date().toISOString()
+  });
+  if(error)throw error;
+  setIndustrySelectors();
+  return true;
+ }catch(err){
+  showToast("Không lưu được danh sách ngành hàng: "+databaseErrorMessage(err));
+  return false;
+ }
+}
+function addIndustry(){
+ const name=prompt("Tên ngành hàng / Business Unit:");
+ if(!name?.trim())return;
+ const clean=name.trim();
+ if(industries.includes(clean)){showToast("Ngành hàng đã tồn tại");return}
+ industries.push(clean);
+ setIndustrySelectors();
+ const kpi=kpiData[Number(document.getElementById("industryKpiSelect")?.value)||0];
+ if(kpi){
+  kpi.allocation=kpi.allocation||{mode:"equal",industries:[]};
+  kpi.allocation.industries.push({id:"ind-"+Date.now(),name:clean,weight:0,actual:0});
+  if(kpi.allocation.mode==="equal")equalIndustryWeights(false);
+ }
+ renderIndustryAllocation();
+ saveIndustrySettings();
+ saveKpiDraft();
+ setDatabaseStatus("unsaved","warn");
+}
+function removeIndustryFromKpi(idx){
+ const k=kpiData[Number(document.getElementById("industryKpiSelect")?.value)||0];if(!k)return;
+ k.allocation.industries.splice(idx,1);
+ if(k.allocation.mode==="equal")equalIndustryWeights(false);
+ renderIndustryAllocation();saveKpiDraft();setDatabaseStatus("unsaved","warn");
+}
+function setIndustryAllocationMode(mode){
+ const k=kpiData[Number(document.getElementById("industryKpiSelect")?.value)||0];if(!k)return;
+ k.allocation=normalizeIndustryAllocation(k.allocation);
+ k.allocation.mode=mode==="custom"?"custom":"equal";
+ if(k.allocation.mode==="equal")equalIndustryWeights(false);
+ renderIndustryAllocation();saveKpiDraft();setDatabaseStatus("unsaved","warn");
+}
+function equalIndustryWeights(show=true){
+ const k=kpiData[Number(document.getElementById("industryKpiSelect")?.value)||0];if(!k)return;
+ k.allocation=normalizeIndustryAllocation(k.allocation);
+ const n=k.allocation.industries.length;
+ if(!n){if(show)showToast("Hãy Add Industry trước.");return}
+ const base=Math.floor((100/n)*100)/100;
+ let remaining=100;
+ k.allocation.industries.forEach((r,i)=>{r.weight=i===n-1?Number(remaining.toFixed(2)):base;remaining-=base});
+ k.allocation.mode="equal";
+ renderIndustryAllocation();saveKpiDraft();setDatabaseStatus("unsaved","warn");
+}
+function updateIndustryWeight(idx,value){
+ const k=kpiData[Number(document.getElementById("industryKpiSelect")?.value)||0];if(!k)return;
+ k.allocation=normalizeIndustryAllocation(k.allocation);
+ k.allocation.mode="custom";
+ k.allocation.industries[idx].weight=Math.max(0,safeNum(value));
+ document.getElementById("industryAllocationMode").value="custom";
+ renderIndustryAllocation();saveKpiDraft();setDatabaseStatus("unsaved","warn");
+}
+function updateIndustryActual(idx,value){
+ const k=kpiData[Number(document.getElementById("industryKpiSelect")?.value)||0];if(!k)return;
+ k.allocation=normalizeIndustryAllocation(k.allocation);
+ k.allocation.industries[idx].actual=Math.max(0,safeNum(value));
+ renderIndustryAllocation();saveKpiDraft();setDatabaseStatus("unsaved","warn");
+}
+function renameIndustry(idx,value){
+ const k=kpiData[Number(document.getElementById("industryKpiSelect")?.value)||0];if(!k)return;
+ k.allocation=normalizeIndustryAllocation(k.allocation);
+ const old=k.allocation.industries[idx].name;
+ const clean=value.trim();
+ if(clean && clean!==old){
+  const pos=industries.indexOf(old);
+  if(pos>=0)industries[pos]=clean;
+  k.allocation.industries[idx].name=clean;
+  setIndustrySelectors();
+  saveIndustrySettings();
+ }
+ saveKpiDraft();setDatabaseStatus("unsaved","warn");
+}
+function syncKpiIndustries(k){
+ if(!k)return;
+ k.allocation=normalizeIndustryAllocation(k.allocation);
+ const existing=new Set(k.allocation.industries.map(r=>r.name));
+ industries.forEach(name=>{
+  if(!existing.has(name))k.allocation.industries.push({id:"ind-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name,weight:0,actual:0});
+ });
+}
+function renderIndustryAllocation(){
+ const select=document.getElementById("industryKpiSelect"),tbody=document.getElementById("industryAllocationTable"),summary=document.getElementById("industryAllocationSummary");
+ if(!select||!tbody||!summary)return;
+ select.innerHTML=kpiData.map((k,i)=>`<option value="${i}">${escapeHtml(k.name)}</option>`).join("");
+ let idx=Number(select.value);if(!Number.isFinite(idx)||idx>=kpiData.length)idx=0;select.value=String(idx);
+ const k=kpiData[idx];if(!k)return;
+ syncKpiIndustries(k);
+ document.getElementById("industryAllocationMode").value=k.allocation.mode;
+ const rows=industryTargets(k),totalWeight=k.allocation.industries.reduce((a,r)=>a+safeNum(r.weight),0),totalActual=rows.reduce((a,r)=>a+safeNum(r.actual),0),monthActual=monthlyValues(k).actual;
+ const delta=totalActual-monthActual;
+ summary.innerHTML=`<span><b>${escapeHtml(k.name)}</b></span><span>Month Target: <strong>${fmt(monthlyValues(k).target,k.unit)}</strong></span><span>Weight: <strong>${totalWeight.toFixed(2)}%</strong></span><span>Industry Actual: <strong>${fmt(totalActual,k.unit)}</strong></span><span>KPI Actual: <strong>${fmt(monthActual,k.unit)}</strong></span><span class="${Math.abs(delta)<0.01?'industry-ok':'industry-warning'}">${Math.abs(delta)<0.01?'✓ Actual đã khớp KPI tổng':'⚠ Actual ngành hàng chưa khớp KPI tổng: '+fmt(delta,k.unit)}</span>`;
+ tbody.innerHTML=rows.map((r,i)=>`<tr>
+  <td><input value="${escapeHtml(r.name)}" oninput="renameIndustry(${i},this.value)"></td>
+  <td><input class="industry-weight" type="number" min="0" max="100" step="0.01" value="${r.weight}" oninput="updateIndustryWeight(${i},this.value)"></td>
+  <td class="industry-target">${fmt(r.target,k.unit)}</td>
+  <td><input class="industry-actual" type="number" min="0" value="${r.actual}" oninput="updateIndustryActual(${i},this.value)"></td>
+  <td>${r.achievement?Math.round(r.achievement)+"%":"—"}</td>
+  <td><span class="badge ${status(r.achievement)}">${r.achievement?label(r.achievement):"—"}</span></td>
+  <td><button class="small-action" onclick="removeIndustryFromKpi(${i})">Remove</button></td>
+ </tr>`).join("");
+}
+async function saveIndustryAllocation(){
+ const k=kpiData[Number(document.getElementById("industryKpiSelect")?.value)||0];if(!k)return;
+ k.allocation=normalizeIndustryAllocation(k.allocation);
+ const total=k.allocation.industries.reduce((a,r)=>a+safeNum(r.weight),0);
+ if(Math.abs(total-100)>0.01){showToast(`Tổng tỷ trọng phải bằng 100%. Hiện tại: ${total.toFixed(2)}%`);return}
+ const ok=await saveAllData(true);
+ if(ok){await saveIndustrySettings();showToast(`Đã lưu phân bổ KPI cho ${k.name}`);renderIndustryAllocation();}
+}
 function setGlobalChannelSelector(){
  const e=document.getElementById("channel");if(!e)return;
  const keep=e.value;
@@ -482,6 +696,8 @@ function setChannelSelectors(){
  const k=document.getElementById("kpiChannelPicker"),c=document.getElementById("newContentChannel");
  if(k){k.innerHTML=channels.map(ch=>`<option value="${escapeHtml(ch)}">${escapeHtml(ch)}</option>`).join("");k.value=currentChannel}
  if(c){c.innerHTML=channels.map(ch=>`<option value="${escapeHtml(ch)}">${escapeHtml(ch)}</option>`).join("");c.value=currentChannel}
+ setIndustrySelectors();
+ renderIndustryAllocation();
 }
 function switchChannel(ch){
  currentChannel=ch;
@@ -492,7 +708,7 @@ function switchChannel(ch){
  contents=normalizeContents(d.contents||[]);
  paidCampaigns=Array.isArray(d.paid?.campaigns)?d.paid.campaigns.map(normalizeCampaign):(d.paid?.campaign?[normalizeCampaign(d.paid)]:[]);
  window.paidData=d.paid||{};window.reviewData=d.review||{};
- setGlobalChannelSelector();setChannelSelectors();renderKpis();renderKpiEditor();renderContent();renderPaidCampaigns();applyReviewData();renderChannels();updateOverviewChart();
+ setGlobalChannelSelector();setChannelSelectors();renderKpis();renderKpiEditor();renderIndustryAllocation();renderContent();renderPaidCampaigns();applyReviewData();renderChannels();updateOverviewChart();
  document.getElementById("kpiChannelTitle").textContent=`${ch} — ${monthLabel(currentMonth)}`;;const cds=document.getElementById("contentDataSource");if(cds)cds.textContent=`Data source: Supabase · ${ch} · ${monthLabel(currentMonth)}`
 }
 function renderKpis(){
@@ -548,8 +764,14 @@ function refreshKpiRow(i){
  cells[8].innerHTML=`<span class="badge ${status(p)}">${label(p)}</span>`;
 }
 function addKpiRow(){
- kpiData.push({name:"New KPI",unit:"",invert:false,weekly:[{target:0,actual:0},{target:0,actual:0},{target:0,actual:0},{target:0,actual:0}]});
- renderKpiEditor();renderKpis();saveKpiDraft();setDatabaseStatus("unsaved","warn");
+ const allocation={mode:"equal",industries:industries.map((name,i)=>({id:"ind-"+Date.now()+"-"+i,name,weight:0,actual:0}))};
+ const k={name:"New KPI",unit:"",invert:false,weekly:[{target:0,actual:0},{target:0,actual:0},{target:0,actual:0},{target:0,actual:0}],allocation};
+ kpiData.push(k);
+ if(allocation.industries.length) {
+  const n=allocation.industries.length,base=Math.floor((100/n)*100)/100;let rem=100;
+  allocation.industries.forEach((r,i)=>{r.weight=i===n-1?Number(rem.toFixed(2)):base;rem-=base});
+ }
+ renderKpiEditor();renderKpis();renderIndustryAllocation();saveKpiDraft();setDatabaseStatus("unsaved","warn");
 }
 async function submitKpiTargets(){
  if(!confirm("Xác nhận chốt toàn bộ Target của tháng và kênh này? Sau khi chốt sẽ không thể sửa nếu không có mật khẩu."))return;
@@ -645,12 +867,12 @@ function renderChannels(){
  </div>`).join("");
 }function renderContent(){
  const table=document.getElementById("contentTable");if(!table)return;
- table.innerHTML=contents.map((c,i)=>`<tr><td><strong>${i+1}</strong></td><td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.audience||"—")}</td><td><span class="badge blue">${escapeHtml(c.pillar)}</span></td><td>${escapeHtml(c.channel)}</td><td>${fmt(c.reach)}</td><td>${fmt(c.engagement)}</td><td><strong>${safeNum(c.er).toFixed(2)}%</strong></td><td>${fmt(c.views)}</td><td>${fmt(c.leads)}</td><td>${c.cpl?fmt(c.cpl,"₫"):"—"}</td><td><span class="badge ${c.leads>0||c.engagement>0?"good":"warn"}">${c.leads>0||c.engagement>0?"RECORDED":"CHECK"}</span></td><td><div class="content-row-actions"><button class="small-action" onclick="editContent(${i})">Edit</button><button class="small-action" onclick="deleteContent(${i})">Delete</button></div></td></tr>`).join("");
+ table.innerHTML=contents.map((c,i)=>`<tr><td><strong>${i+1}</strong></td><td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.audience||"—")}</td><td><span class="badge blue">${escapeHtml(c.industry||"Chưa phân loại")}</span></td><td><span class="badge blue">${escapeHtml(c.pillar)}</span></td><td>${escapeHtml(c.channel)}</td><td>${fmt(c.reach)}</td><td>${fmt(c.engagement)}</td><td><strong>${safeNum(c.er).toFixed(2)}%</strong></td><td>${fmt(c.views)}</td><td>${fmt(c.leads)}</td><td>${c.cpl?fmt(c.cpl,"₫"):"—"}</td><td><span class="badge ${c.leads>0||c.engagement>0?"good":"warn"}">${c.leads>0||c.engagement>0?"RECORDED":"CHECK"}</span></td><td><div class="content-row-actions"><button class="small-action" onclick="editContent(${i})">Edit</button><button class="small-action" onclick="deleteContent(${i})">Delete</button></div></td></tr>`).join("");
 }
-function toggleContentForm(){document.getElementById("contentForm").classList.toggle("open")}
+function toggleContentForm(){setIndustrySelectors();document.getElementById("contentForm").classList.toggle("open")}
 function resetContentForm(){
  ["newContentName","newContentAudience","newContentReach","newContentEngagement","newContentViews","newContentLeads","newContentSpend","newContentER","newContentCTR","newContentCPL","newContentNote"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});
- document.getElementById("newContentPillar").value="Brand";document.getElementById("newContentChannel").value=currentChannel;document.getElementById("newContentDate").value="";document.getElementById("contentForm").classList.remove("open");window.editingContentIndex=null;
+ document.getElementById("newContentPillar").value="Brand";document.getElementById("newContentChannel").value=currentChannel;setIndustrySelectors();document.getElementById("newContentIndustry").value="Chưa phân loại";document.getElementById("newContentDate").value="";document.getElementById("contentForm").classList.remove("open");window.editingContentIndex=null;
 }
 function calcContentMetrics(){
  const reach=safeNum(document.getElementById("newContentReach")?.value),eng=safeNum(document.getElementById("newContentEngagement")?.value),leads=safeNum(document.getElementById("newContentLeads")?.value),spend=safeNum(document.getElementById("newContentSpend")?.value);
@@ -676,6 +898,7 @@ async function saveContentPage(){
    contents:normalizeContents(contents||row.contents||[]),
    paid:clone(row.paid||getPaidData()||{campaigns:[]}),
    review:clone(row.review||window.reviewData||{}),
+   industries:clone(industries),
    updatedAt:new Date().toISOString()
   };
   const record={
@@ -722,6 +945,7 @@ async function saveNewContent(){
   id:old?.id||Date.now().toString(),
   name,
   audience:document.getElementById("newContentAudience")?.value.trim()||"",
+  industry:document.getElementById("newContentIndustry")?.value||"Chưa phân loại",
   pillar:document.getElementById("newContentPillar")?.value||"Brand",
   channel:targetChannel,
   date:document.getElementById("newContentDate")?.value||"",
@@ -753,7 +977,7 @@ async function saveNewContent(){
 }
 function editContent(i){
  const c=contents[i];window.editingContentIndex=i;document.getElementById("contentForm").classList.add("open");
- document.getElementById("newContentName").value=c.name;document.getElementById("newContentAudience").value=c.audience||"";document.getElementById("newContentPillar").value=c.pillar;document.getElementById("newContentChannel").value=c.channel;document.getElementById("newContentDate").value=c.date||"";
+ document.getElementById("newContentName").value=c.name;document.getElementById("newContentAudience").value=c.audience||"";setIndustrySelectors();document.getElementById("newContentIndustry").value=c.industry||"Chưa phân loại";document.getElementById("newContentPillar").value=c.pillar;document.getElementById("newContentChannel").value=c.channel;document.getElementById("newContentDate").value=c.date||"";
  document.getElementById("newContentReach").value=c.reach;document.getElementById("newContentEngagement").value=c.engagement;document.getElementById("newContentViews").value=c.views;document.getElementById("newContentLeads").value=c.leads;document.getElementById("newContentSpend").value=c.spend;document.getElementById("newContentCTR").value=c.ctr||"";document.getElementById("newContentNote").value=c.note||"";calcContentMetrics()
 }
 async function deleteContent(i){
@@ -934,6 +1158,7 @@ async function upsertChannelData(channel,row){
    contents:clone(row.contents||[]),
    paid:clone(row.paid||{}),
    review:clone(row.review||{}),
+   industries:clone(industries),
    updatedAt:new Date().toISOString()
   };
   // Validate that the JSONB payload is actually serializable before sending.
@@ -987,6 +1212,7 @@ async function initSupabase(){
   setAgencySelectors();
   supabaseInitialized=true;
   setDatabaseStatus("connected","good");
+  await loadIndustrySettings();
   await loadMonthData();
  }catch(err){
   console.error("Supabase initialization error:",err);
@@ -1015,13 +1241,13 @@ async function loadMonthData(){
  }
 }
 function normalizeCampaign(c){
- return {id:c.id||Date.now().toString(),campaign:c.campaign||"",platform:c.platform||"Meta",objective:c.objective||"Conversion",status:c.status||"Planned",
+ return {id:c.id||Date.now().toString(),campaign:c.campaign||"",industry:c.industry||"Chưa phân loại",platform:c.platform||"Meta",objective:c.objective||"Conversion",status:c.status||"Planned",
  budgetTarget:safeNum(c.budgetTarget??c.budget),spend:safeNum(c.spend??c.budget),targetLeads:safeNum(c.targetLeads),actualLeads:safeNum(c.actualLeads),
  impressions:safeNum(c.impressions),reach:safeNum(c.reach),clicks:safeNum(c.clicks),conversions:safeNum(c.conversions),revenue:safeNum(c.revenue),targetCPL:safeNum(c.targetCPL),note:c.note||""};
 }
 function getPaidCampaignForm(){
  return normalizeCampaign({id:window.editingPaidIndex!=null?(paidCampaigns[window.editingPaidIndex]?.id):Date.now().toString(),
- campaign:document.getElementById("paidCampaign")?.value,platform:document.getElementById("paidPlatform")?.value,objective:document.getElementById("paidObjective")?.value,status:document.getElementById("paidCampaignStatus")?.value,
+ campaign:document.getElementById("paidCampaign")?.value,industry:document.getElementById("paidIndustry")?.value,platform:document.getElementById("paidPlatform")?.value,objective:document.getElementById("paidObjective")?.value,status:document.getElementById("paidCampaignStatus")?.value,
  budgetTarget:document.getElementById("paidBudgetTarget")?.value,spend:document.getElementById("paidSpend")?.value,targetLeads:document.getElementById("paidTargetLeads")?.value,actualLeads:document.getElementById("paidActualLeads")?.value,
  impressions:document.getElementById("paidImpressions")?.value,reach:document.getElementById("paidReach")?.value,clicks:document.getElementById("paidClicks")?.value,conversions:document.getElementById("paidConversions")?.value,revenue:document.getElementById("paidRevenue")?.value,targetCPL:document.getElementById("paidTargetCPL")?.value,note:document.getElementById("paidNote")?.value});
 }
@@ -1032,13 +1258,13 @@ function paidMetrics(c){
 function getPaidData(){return {campaigns:paidCampaigns.map(normalizeCampaign)}}
 function renderPaidCampaigns(){
  const table=document.getElementById("paidCampaignTable");if(!table)return;
- table.innerHTML=paidCampaigns.map((c,i)=>{const m=paidMetrics(c);return `<tr><td>${i+1}</td><td><strong>${escapeHtml(c.campaign||"—")}</strong></td><td>${escapeHtml(c.platform)}</td><td>${escapeHtml(c.objective)}</td><td>${fmt(c.budgetTarget,"₫")}</td><td>${fmt(c.spend,"₫")}</td><td>${fmt(c.actualLeads)}</td><td>${m.cpl?fmt(m.cpl,"₫"):"—"}</td><td>${m.ctr.toFixed(2)}%</td><td>${m.roas?m.roas.toFixed(2)+"x":"—"}</td><td><span class="badge ${status(m.leadAch)}">${m.leadAch?Math.round(m.leadAch)+"%":"—"}</span></td><td><span class="badge ${c.status==="Completed"?"good":c.status==="Paused"?"warn":"blue"}">${escapeHtml(c.status)}</span></td><td><button class="small-action" onclick="editPaidCampaign(${i})">Edit</button> <button class="small-action" onclick="deletePaidCampaign(${i})">Delete</button></td></tr>`}).join("");
+ table.innerHTML=paidCampaigns.map((c,i)=>{const m=paidMetrics(c);return `<tr><td>${i+1}</td><td><strong>${escapeHtml(c.campaign||"—")}</strong></td><td><span class="badge blue">${escapeHtml(c.industry||"Chưa phân loại")}</span></td><td>${escapeHtml(c.platform)}</td><td>${escapeHtml(c.objective)}</td><td>${fmt(c.budgetTarget,"₫")}</td><td>${fmt(c.spend,"₫")}</td><td>${fmt(c.actualLeads)}</td><td>${m.cpl?fmt(m.cpl,"₫"):"—"}</td><td>${m.ctr.toFixed(2)}%</td><td>${m.roas?m.roas.toFixed(2)+"x":"—"}</td><td><span class="badge ${status(m.leadAch)}">${m.leadAch?Math.round(m.leadAch)+"%":"—"}</span></td><td><span class="badge ${c.status==="Completed"?"good":c.status==="Paused"?"warn":"blue"}">${escapeHtml(c.status)}</span></td><td><button class="small-action" onclick="editPaidCampaign(${i})">Edit</button> <button class="small-action" onclick="deletePaidCampaign(${i})">Delete</button></td></tr>`}).join("");
  const totalSpend=paidCampaigns.reduce((a,c)=>a+c.spend,0),totalLeads=paidCampaigns.reduce((a,c)=>a+c.actualLeads,0),totalRevenue=paidCampaigns.reduce((a,c)=>a+c.revenue,0),avgCpl=totalLeads?totalSpend/totalLeads:0;
  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set("paidTotalSpend",fmt(totalSpend,"₫"));set("paidTotalLeads",fmt(totalLeads));set("paidAvgCPL",avgCpl?fmt(avgCpl,"₫"):"—");set("paidTotalRevenue",fmt(totalRevenue,"₫"));set("paidCampaignCount",`${paidCampaigns.length} campaign${paidCampaigns.length===1?"":"s"}`);
  if(paidCampaigns.length)fillPaidForm(paidCampaigns[window.editingPaidIndex??0]);else updatePaidCalc();
 }
 function fillPaidForm(c){
- if(!c)return;const map={paidCampaign:c.campaign,paidPlatform:c.platform,paidObjective:c.objective,paidCampaignStatus:c.status,paidBudgetTarget:c.budgetTarget,paidSpend:c.spend,paidTargetLeads:c.targetLeads,paidActualLeads:c.actualLeads,paidImpressions:c.impressions,paidReach:c.reach,paidClicks:c.clicks,paidConversions:c.conversions,paidRevenue:c.revenue,paidTargetCPL:c.targetCPL,paidNote:c.note};
+ if(!c)return;const map={paidCampaign:c.campaign,paidIndustry:c.industry||"Chưa phân loại",paidPlatform:c.platform,paidObjective:c.objective,paidCampaignStatus:c.status,paidBudgetTarget:c.budgetTarget,paidSpend:c.spend,paidTargetLeads:c.targetLeads,paidActualLeads:c.actualLeads,paidImpressions:c.impressions,paidReach:c.reach,paidClicks:c.clicks,paidConversions:c.conversions,paidRevenue:c.revenue,paidTargetCPL:c.targetCPL,paidNote:c.note};
  Object.entries(map).forEach(([id,v])=>{const e=document.getElementById(id);if(e)e.value=v??""});updatePaidCalc();
 }
 function updatePaidCalc(){
@@ -1061,7 +1287,7 @@ async function savePaidCampaign(){
 }
 function editPaidCampaign(i){window.editingPaidIndex=i;fillPaidForm(paidCampaigns[i])}
 async function deletePaidCampaign(i){if(confirm("Xóa Campaign này?")){paidCampaigns.splice(i,1);window.editingPaidIndex=null;renderPaidCampaigns();await saveAllData(true)}}
-function resetPaidForm(){window.editingPaidIndex=null;["paidCampaign","paidBudgetTarget","paidSpend","paidTargetLeads","paidActualLeads","paidImpressions","paidReach","paidClicks","paidConversions","paidRevenue","paidTargetCPL","paidNote"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});document.getElementById("paidPlatform").value="Meta";document.getElementById("paidObjective").value="Conversion";document.getElementById("paidCampaignStatus").value="Planned";updatePaidCalc()}
+function resetPaidForm(){window.editingPaidIndex=null;["paidCampaign","paidBudgetTarget","paidSpend","paidTargetLeads","paidActualLeads","paidImpressions","paidReach","paidClicks","paidConversions","paidRevenue","paidTargetCPL","paidNote"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});setIndustrySelectors();document.getElementById("paidIndustry").value="Chưa phân loại";document.getElementById("paidPlatform").value="Meta";document.getElementById("paidObjective").value="Conversion";document.getElementById("paidCampaignStatus").value="Planned";updatePaidCalc()}
 function draftStorageKey(){
  return `amoralic_draft_${currentAgency}_${monthKey(currentMonth)}_${currentChannel}`;
 }
@@ -1099,6 +1325,7 @@ async function saveAllData(showMessage=true){
    contents:clone(contents),
    paid:getPaidData(),
    review:clone(window.reviewData||{}),
+   industries:clone(industries),
    updatedAt:new Date().toISOString()
   };
   const {error}=await supabaseClient.from("digital_dashboard_data").upsert({
@@ -1137,7 +1364,7 @@ window.addEventListener("load",()=>{
  const m=document.getElementById("month")?.value||"2026-08";
  currentMonth=m;
  const p=document.getElementById("kpiMonthPicker");if(p)p.value=m;
- setGlobalChannelSelector();setChannelSelectors();setAgencySelectors();
+ setGlobalChannelSelector();setChannelSelectors();setIndustrySelectors();setAgencySelectors();renderIndustryAllocation();
 });
 </script>
 
