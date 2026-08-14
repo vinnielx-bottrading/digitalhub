@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Amoralic Digital Performance Dashboard v13.2 · Supabase</title>
+<title>Amoralic Digital Performance Dashboard v14.0 · Supabase</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -255,6 +255,27 @@ button.primary:hover{background:#242830;border-color:#242830}
   .modal-card{padding:22px}
 }
 
+
+/* v14 Campaign Planning */
+.campaign-logic{margin-bottom:16px}
+.logic-chain{display:flex;align-items:center;justify-content:space-between;gap:8px;overflow:auto}
+.logic-chain>div{min-width:125px;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fafbfc}
+.logic-chain b{display:block;font-size:9px;color:var(--muted);margin-bottom:5px}
+.logic-chain strong{display:block;font-size:13px}
+.logic-chain span{display:block;font-size:10px;color:var(--muted);margin-top:3px}
+.logic-chain i{font-style:normal;color:var(--muted);font-size:20px}
+.campaign-form{display:none;margin-bottom:16px}
+.campaign-form.open{display:block;animation:fadeIn .16s ease}
+.campaign-form-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.campaign-form-grid .full{grid-column:1/-1}
+.campaign-validation{min-height:18px;color:#d14b4b;font-size:12px;margin:8px 0}
+.campaign-summary{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+.campaign-summary .mini-stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 14px;min-width:130px}
+.campaign-summary .mini-stat strong{display:block;font-size:16px}
+.campaign-summary .mini-stat span{display:block;font-size:10px;color:var(--muted);margin-top:3px}
+@media(max-width:900px){.campaign-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.logic-chain{justify-content:flex-start}}
+@media(max-width:600px){.campaign-form-grid{grid-template-columns:1fr}.campaign-form-grid .full{grid-column:auto}.logic-chain>i{display:none}.logic-chain{display:grid;grid-template-columns:1fr 1fr}.logic-chain>div{min-width:0}}
+
 </style>
 <!-- Supabase schema: use digital_dashboard_supabase_setup.sql supplied with this dashboard. -->
 </head>
@@ -267,12 +288,13 @@ button.primary:hover{background:#242830;border-color:#242830}
     <nav class="nav" id="mainNav">
       <a class="active" href="#overview" data-page="overview">Overview</a>
       <a href="#kpi" data-page="kpi">KPI Management</a>
+      <a href="#campaigns" data-page="campaigns">Campaign Planning</a>
       <a href="#content" data-page="content">Content</a>
       <a href="#channels" data-page="channels">Channels</a>
       <a href="#paid" data-page="paid">Paid Media</a>
       <a href="#review" data-page="review">Nghiệm thu tháng</a>
     </nav>
-    <div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v13.2</div>
+    <div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v14.0</div>
   </aside>
 
   <main class="main">
@@ -372,6 +394,73 @@ button.primary:hover{background:#242830;border-color:#242830}
       </div>
     </section>
 
+
+    <!-- CAMPAIGN PLANNING -->
+    <section class="page" id="page-campaigns">
+      <div class="page-head">
+        <div>
+          <h2>Campaign Planning</h2>
+          <p>Campaign được tạo từ KPI Plan. Content và Paid Media chỉ chọn Campaign đã có để ghi nhận kết quả.</p>
+        </div>
+        <div class="action-row">
+          <button onclick="openCampaignForm()">+ Add Campaign</button>
+          <button class="primary" onclick="saveCampaignSettings()">Lưu Campaign Plan</button>
+        </div>
+      </div>
+
+      <div class="card campaign-logic">
+        <div class="logic-chain">
+          <div><b>01</b><strong>KPI</strong><span>Target / Budget</span></div>
+          <i>→</i>
+          <div><b>02</b><strong>Campaign</strong><span>Phân bổ mục tiêu</span></div>
+          <i>→</i>
+          <div><b>03</b><strong>Activity</strong><span>Content / Paid</span></div>
+          <i>→</i>
+          <div><b>04</b><strong>Result</strong><span>Actual / Spend</span></div>
+          <i>→</i>
+          <div><b>05</b><strong>Efficiency</strong><span>CPL / ROAS / ROI</span></div>
+        </div>
+        <p class="muted" style="margin:12px 0 0">Campaign là đối tượng trung tâm. Không tạo lại Campaign trong Paid Media; Paid Media chỉ ghi nhận tiền và performance cho Campaign đó.</p>
+      </div>
+
+      <div class="card campaign-form" id="campaignForm">
+        <div class="section-title" style="margin-top:0"><h2>Campaign Entry</h2><span>Kế hoạch chiến dịch</span></div>
+        <div class="form-grid campaign-form-grid">
+          <div class="field"><label>Campaign Name</label><input id="campName" placeholder="Ví dụ: Summer Car Sale"></div>
+          <div class="field"><label>Industry / Ngành hàng</label><select id="campIndustry"></select></div>
+          <div class="field"><label>KPI liên kết</label><select id="campKpi"></select></div>
+          <div class="field"><label>Objective</label><select id="campObjective"><option>Lead Generation</option><option>Conversion</option><option>Traffic</option><option>Engagement</option><option>Awareness</option><option>Sales</option></select></div>
+          <div class="field"><label>Campaign Target</label><input id="campTarget" type="number" min="0" placeholder="300"></div>
+          <div class="field"><label>Budget Target (đ)</label><input id="campBudget" type="number" min="0" placeholder="150000000"></div>
+          <div class="field"><label>Start Date</label><input id="campStart" type="date"></div>
+          <div class="field"><label>End Date</label><input id="campEnd" type="date"></div>
+          <div class="field"><label>Owner / Agency</label><input id="campOwner" placeholder="BeeOne"></div>
+          <div class="field"><label>Priority</label><select id="campPriority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+          <div class="field full"><label>Note</label><textarea id="campNote" placeholder="Thông điệp, audience, phạm vi chiến dịch..."></textarea></div>
+        </div>
+        <div id="campaignValidation" class="campaign-validation"></div>
+        <div class="content-actions">
+          <button onclick="closeCampaignForm()">Cancel</button>
+          <button class="primary" onclick="addCampaign()">Save Campaign</button>
+        </div>
+      </div>
+
+      <div class="campaign-summary">
+        <div class="mini-stat"><strong id="campaignPlanCount">0</strong><span>Campaign</span></div>
+        <div class="mini-stat"><strong id="campaignPlanTarget">0</strong><span>Total Target</span></div>
+        <div class="mini-stat"><strong id="campaignPlanBudget">0₫</strong><span>Planned Budget</span></div>
+        <div class="mini-stat"><strong id="campaignPlanActual">0</strong><span>Paid Actual</span></div>
+        <div class="mini-stat"><strong id="campaignPlanSpend">0₫</strong><span>Actual Spend</span></div>
+      </div>
+
+      <div class="card table-card">
+        <table>
+          <thead><tr><th>#</th><th>Campaign</th><th>Industry</th><th>KPI</th><th>Target</th><th>Budget</th><th>Paid Actual</th><th>Spend</th><th>CPL</th><th>ROAS</th><th>Achievement</th><th></th></tr></thead>
+          <tbody id="campaignPlanTable"></tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- CONTENT -->
     <section class="page" id="page-content">
       <div class="page-head">
@@ -386,6 +475,7 @@ button.primary:hover{background:#242830;border-color:#242830}
           <div class="field target-audience-field"><label>Target Audience</label><input id="newContentAudience" placeholder="Ví dụ: Nữ 25–34, HCM, quan tâm lifestyle"></div>
           <div class="field"><label>Industry / Ngành hàng</label><select id="newContentIndustry"></select></div>
           <div class="field"><label>Content Pillar</label><select id="newContentPillar"><option>Brand</option><option>Product</option><option>Education</option><option>Lifestyle</option><option>Campaign</option></select></div>
+          <div class="field"><label>Campaign liên kết</label><select id="newContentCampaign"><option value="">Không gắn Campaign</option></select></div>
           <div class="field"><label>Channel</label><select id="newContentChannel"></select></div>
           <div class="field"><label>Publish Date</label><input id="newContentDate" type="date"></div>
         </div>
@@ -464,7 +554,8 @@ button.primary:hover{background:#242830;border-color:#242830}
       <div class="section-title"><h2>Campaign Control</h2><span id="paidCampaignCount">0 campaigns</span></div>
       <div class="card paid-campaign-form">
         <div class="form-grid">
-          <div class="field"><label>Campaign</label><input id="paidCampaign" placeholder="August Conversion Campaign"></div>
+          <div class="field"><label>Campaign Planning</label><select id="paidCampaignId"><option value="">Chọn Campaign đã lập kế hoạch</option></select></div>
+          <div class="field"><label>Campaign Name</label><input id="paidCampaign" placeholder="Tự lấy từ Campaign Planning" readonly></div>
           <div class="field"><label>Industry / Ngành hàng</label><select id="paidIndustry"></select></div>
           <div class="field"><label>Platform</label><select id="paidPlatform"><option>Meta</option><option>TikTok</option><option>Google</option><option>Zalo</option><option>Other</option></select></div>
           <div class="field"><label>Objective</label><select id="paidObjective"><option>Conversion</option><option>Lead Generation</option><option>Traffic</option><option>Reach</option><option>Engagement</option><option>Sales</option></select></div>
@@ -953,7 +1044,7 @@ function renderChannels(){
  const table=document.getElementById("contentTable");if(!table)return;
  table.innerHTML=contents.map((c,i)=>`<tr><td><strong>${i+1}</strong></td><td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.audience||"—")}</td><td><span class="badge blue">${escapeHtml(c.industry||"Chưa phân loại")}</span></td><td><span class="badge blue">${escapeHtml(c.pillar)}</span></td><td>${escapeHtml(c.channel)}</td><td>${fmt(c.reach)}</td><td>${fmt(c.engagement)}</td><td><strong>${safeNum(c.er).toFixed(2)}%</strong></td><td>${fmt(c.views)}</td><td>${fmt(c.leads)}</td><td>${c.cpl?fmt(c.cpl,"₫"):"—"}</td><td><span class="badge ${c.leads>0||c.engagement>0?"good":"warn"}">${c.leads>0||c.engagement>0?"RECORDED":"CHECK"}</span></td><td><div class="content-row-actions"><button class="small-action" onclick="editContent(${i})">Edit</button><button class="small-action" onclick="deleteContent(${i})">Delete</button></div></td></tr>`).join("");
 }
-function toggleContentForm(){setIndustrySelectors();document.getElementById("contentForm").classList.toggle("open")}
+function toggleContentForm(){setIndustrySelectors();populateCampaignSelectors();document.getElementById("contentForm").classList.toggle("open")}
 function resetContentForm(){
  ["newContentName","newContentAudience","newContentReach","newContentEngagement","newContentViews","newContentLeads","newContentSpend","newContentER","newContentCTR","newContentCPL","newContentNote"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});
  document.getElementById("newContentPillar").value="Brand";document.getElementById("newContentChannel").value=currentChannel;setIndustrySelectors();document.getElementById("newContentIndustry").value="Chưa phân loại";document.getElementById("newContentDate").value="";document.getElementById("contentForm").classList.remove("open");window.editingContentIndex=null;
@@ -983,6 +1074,7 @@ async function saveContentPage(){
    paid:clone(row.paid||getPaidData()||{campaigns:[]}),
    review:clone(row.review||window.reviewData||{}),
    industries:clone(industries),
+   campaigns:clone(campaignPlan||[]),
    updatedAt:new Date().toISOString()
   };
   const record={
@@ -1035,6 +1127,7 @@ async function saveNewContent(){
   date:document.getElementById("newContentDate")?.value||"",
   reach,engagement:eng,er:reach?eng/reach*100:0,views,leads,spend,
   cpl:leads?spend/leads:0,ctr,
+  campaignId:document.getElementById("newContentCampaign")?.value||"",
   note:document.getElementById("newContentNote")?.value.trim()||""
  };
  if(editing)targetList[window.editingContentIndex]=item;else targetList.push(item);
@@ -1061,7 +1154,7 @@ async function saveNewContent(){
 }
 function editContent(i){
  const c=contents[i];window.editingContentIndex=i;document.getElementById("contentForm").classList.add("open");
- document.getElementById("newContentName").value=c.name;document.getElementById("newContentAudience").value=c.audience||"";setIndustrySelectors();document.getElementById("newContentIndustry").value=c.industry||"Chưa phân loại";document.getElementById("newContentPillar").value=c.pillar;document.getElementById("newContentChannel").value=c.channel;document.getElementById("newContentDate").value=c.date||"";
+ document.getElementById("newContentName").value=c.name;document.getElementById("newContentAudience").value=c.audience||"";setIndustrySelectors();document.getElementById("newContentIndustry").value=c.industry||"Chưa phân loại";document.getElementById("newContentPillar").value=c.pillar;populateCampaignSelectors();document.getElementById("newContentCampaign").value=c.campaignId||"";document.getElementById("newContentChannel").value=c.channel;document.getElementById("newContentDate").value=c.date||"";
  document.getElementById("newContentReach").value=c.reach;document.getElementById("newContentEngagement").value=c.engagement;document.getElementById("newContentViews").value=c.views;document.getElementById("newContentLeads").value=c.leads;document.getElementById("newContentSpend").value=c.spend;document.getElementById("newContentCTR").value=c.ctr||"";document.getElementById("newContentNote").value=c.note||"";calcContentMetrics()
 }
 async function deleteContent(i){
@@ -1186,7 +1279,135 @@ function closeMobileNav(){
 document.addEventListener("keydown",e=>{
  if(e.key==="Escape"){closePaidExplanation();closeMobileNav()}
 });
-function navigate(page){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));const target=document.getElementById("page-"+page)||document.getElementById("page-overview");target.classList.add("active");document.querySelectorAll("#mainNav a").forEach(a=>a.classList.toggle("active",a.dataset.page===page));if(location.hash!=="#"+page)history.replaceState(null,"","#"+page);closeMobileNav();window.scrollTo({top:0,behavior:"smooth"})}
+
+function campaignSettingsKey(){return `campaigns__${currentAgency}__${monthKey(currentMonth)}`;}
+let campaignPlan=[];
+async function loadCampaignSettings(){
+ if(!supabaseInitialized||!supabaseClient)return;
+ try{
+  const {data,error}=await supabaseClient.from("digital_dashboard_settings").select("value").eq("key",campaignSettingsKey()).maybeSingle();
+  if(error)throw error;
+  campaignPlan=Array.isArray(data?.value)?data.value.map(normalizeCampaignPlan):[];
+  renderCampaignPlan();populateCampaignSelectors();
+ }catch(err){console.warn("Campaign settings read:",err);campaignPlan=[];renderCampaignPlan();populateCampaignSelectors();}
+}
+function normalizeCampaignPlan(c){
+ return {
+  id:c.id||("camp-"+Date.now()+"-"+Math.random().toString(36).slice(2,7)),
+  name:c.name||c.campaign||"",
+  industry:c.industry||"Chưa phân loại",
+  kpiId:c.kpiId||"",
+  kpiName:c.kpiName||"",
+  objective:c.objective||"Lead Generation",
+  target:safeNum(c.target),
+  budget:safeNum(c.budget||c.budgetTarget),
+  start:c.start||"",end:c.end||"",owner:c.owner||"",priority:c.priority||"Medium",note:c.note||"",
+  paidActual:safeNum(c.paidActual??c.actual),
+  spend:safeNum(c.spend),
+  leads:safeNum(c.leads??c.actualLeads),
+  revenue:safeNum(c.revenue)
+ };
+}
+function getCampaignPlan(){return campaignPlan}
+function setCampaignPlanSelectors(){
+ const ind=document.getElementById("campIndustry");
+ if(ind)ind.innerHTML=(industries.length?industries:["Chưa phân loại"]).map(x=>`<option>${escapeHtml(x)}</option>`).join("");
+ const k=document.getElementById("campKpi");
+ if(k)k.innerHTML=kpiData.map((x,i)=>`<option value="${i}">${escapeHtml(x.name||"KPI "+(i+1))}</option>`).join("");
+}
+function populateCampaignSelectors(){
+ const opts=campaignPlan.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)} · ${escapeHtml(c.industry)}</option>`).join("");
+ const ids=["newContentCampaign","paidCampaignId"];
+ ids.forEach(id=>{
+  const e=document.getElementById(id);if(!e)return;
+  const current=e.value;
+  e.innerHTML='<option value="">'+(id==="paidCampaignId"?"Chọn Campaign đã lập kế hoạch":"Không gắn Campaign")+'</option>'+opts;
+  if(current)e.value=current;
+ });
+}
+function openCampaignForm(){
+ setCampaignPlanSelectors();
+ document.getElementById("campaignForm")?.classList.add("open");
+ document.getElementById("campName")?.focus();
+}
+function closeCampaignForm(){document.getElementById("campaignForm")?.classList.remove("open")}
+function addCampaign(){
+ const name=document.getElementById("campName")?.value.trim()||"";
+ const industry=document.getElementById("campIndustry")?.value||"Chưa phân loại";
+ const ki=Number(document.getElementById("campKpi")?.value||0);
+ const k=kpiData[ki];
+ const target=safeNum(document.getElementById("campTarget")?.value);
+ const budget=safeNum(document.getElementById("campBudget")?.value);
+ const validation=document.getElementById("campaignValidation");
+ if(!name){validation.textContent="Vui lòng nhập Campaign Name.";return}
+ if(campaignPlan.some(c=>c.name.toLowerCase()===name.toLowerCase()&&c.industry===industry)){validation.textContent="Campaign đã tồn tại trong ngành hàng này.";return}
+ campaignPlan.push(normalizeCampaignPlan({
+  id:"camp-"+Date.now()+"-"+Math.random().toString(36).slice(2,8),name,industry,
+  kpiId:k?.id||("kpi-"+ki),kpiName:k?.name||"",objective:document.getElementById("campObjective")?.value,
+  target,budget,start:document.getElementById("campStart")?.value||"",end:document.getElementById("campEnd")?.value||"",
+  owner:document.getElementById("campOwner")?.value.trim()||currentAgency,priority:document.getElementById("campPriority")?.value||"Medium",
+  note:document.getElementById("campNote")?.value.trim()||""
+ }));
+ validation.textContent="";
+ ["campName","campTarget","campBudget","campStart","campEnd","campOwner","campNote"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});
+ renderCampaignPlan();populateCampaignSelectors();setDatabaseStatus("unsaved","warn");
+}
+async function saveCampaignSettings(){
+ if(!supabaseInitialized||!supabaseClient){showToast("Supabase chưa sẵn sàng");return false}
+ try{
+  const {error}=await supabaseClient.from("digital_dashboard_settings").upsert({
+   key:campaignSettingsKey(),value:campaignPlan.map(normalizeCampaignPlan),updated_at:new Date().toISOString()
+  });
+  if(error)throw error;
+  showToast("Campaign Plan đã lưu");setDatabaseStatus("saved","good");
+  setTimeout(()=>setDatabaseStatus("connected","good"),1600);
+  return true;
+ }catch(err){console.error(err);showToast("Campaign PLAN WRITE: "+databaseErrorMessage(err));setDatabaseStatus("write error","bad");return false}
+}
+function campaignPaidSync(){
+ const paid=Array.isArray(paidCampaigns)?paidCampaigns:[];
+ campaignPlan.forEach(c=>{
+  const matches=paid.filter(p=>String(p.campaignId||"")===String(c.id));
+  c.spend=matches.reduce((a,p)=>a+safeNum(p.spend),0);
+  c.paidActual=matches.reduce((a,p)=>a+safeNum(p.actualLeads),0);
+  c.leads=c.paidActual;
+  c.revenue=matches.reduce((a,p)=>a+safeNum(p.revenue),0);
+ });
+}
+function renderCampaignPlan(){
+ const body=document.getElementById("campaignPlanTable");if(!body)return;
+ campaignPaidSync();
+ const totalTarget=campaignPlan.reduce((a,c)=>a+c.target,0),totalBudget=campaignPlan.reduce((a,c)=>a+c.budget,0),totalActual=campaignPlan.reduce((a,c)=>a+c.paidActual,0),totalSpend=campaignPlan.reduce((a,c)=>a+c.spend,0);
+ const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+ set("campaignPlanCount",campaignPlan.length);set("campaignPlanTarget",fmt(totalTarget));set("campaignPlanBudget",fmt(totalBudget,"₫"));set("campaignPlanActual",fmt(totalActual));set("campaignPlanSpend",fmt(totalSpend,"₫"));
+ body.innerHTML=campaignPlan.length?campaignPlan.map((c,i)=>{
+  const ach=c.target?c.paidActual/c.target*100:0,cpl=c.paidActual?c.spend/c.paidActual:0,roas=c.spend?c.revenue/c.spend:0;
+  return `<tr><td>${i+1}</td><td><strong>${escapeHtml(c.name)}</strong><div class="muted">${escapeHtml(c.objective)}</div></td><td><span class="badge blue">${escapeHtml(c.industry)}</span></td><td>${escapeHtml(c.kpiName||"—")}</td><td>${fmt(c.target)}</td><td>${fmt(c.budget,"₫")}</td><td>${fmt(c.paidActual)}</td><td>${fmt(c.spend,"₫")}</td><td>${cpl?fmt(cpl,"₫"):"—"}</td><td>${roas?roas.toFixed(2)+"x":"—"}</td><td><span class="badge ${status(ach)}">${Math.round(ach)}%</span></td><td><button class="small-action" onclick="deleteCampaignPlan(${i})">Delete</button></td></tr>`
+ }).join(""):`<tr><td colspan="12" class="empty-state">Chưa có Campaign Plan. Hãy tạo Campaign từ KPI Management.</td></tr>`;
+}
+async function deleteCampaignPlan(i){
+ if(!confirm("Xóa Campaign Plan này? Paid Media đang liên kết sẽ không bị xóa nhưng sẽ mất liên kết."))return;
+ const id=campaignPlan[i]?.id;campaignPlan.splice(i,1);
+ paidCampaigns.forEach(p=>{if(p.campaignId===id)p.campaignId=""});
+ renderCampaignPlan();populateCampaignSelectors();await saveCampaignSettings();
+}
+function selectedCampaign(id){
+ return campaignPlan.find(c=>String(c.id)===String(id))||null;
+}
+function applySelectedPaidCampaign(){
+ const id=document.getElementById("paidCampaignId")?.value||"";
+ const c=selectedCampaign(id);
+ const name=document.getElementById("paidCampaign");
+ if(name)name.value=c?.name||"";
+ if(c){
+  const ind=document.getElementById("paidIndustry");if(ind){setIndustrySelectors();ind.value=c.industry}
+  const t=document.getElementById("paidTargetLeads");if(t)t.value=c.target||"";
+  const b=document.getElementById("paidBudgetTarget");if(b)b.value=c.budget||"";
+  const obj=document.getElementById("paidObjective");if(obj)obj.value=c.objective||"Conversion";
+ }
+ updatePaidCalc();
+}
+function navigate(page){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));const target=document.getElementById("page-"+page)||document.getElementById("page-overview");target.classList.add("active");if(page==="campaigns"){setCampaignPlanSelectors();renderCampaignPlan()}populateCampaignSelectors();document.querySelectorAll("#mainNav a").forEach(a=>a.classList.toggle("active",a.dataset.page===page));if(location.hash!=="#"+page)history.replaceState(null,"","#"+page);closeMobileNav();window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll("#mainNav a").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();navigate(a.dataset.page)}));
 window.addEventListener("hashchange",()=>navigate(location.hash.replace("#","")||"overview"));
 document.getElementById("kpiMonthPicker")?.addEventListener("change",async e=>{currentMonth=e.target.value;document.getElementById("month").value=currentMonth;await loadMonthData()});
@@ -1269,6 +1490,7 @@ async function upsertChannelData(channel,row){
    paid:clone(row.paid||{}),
    review:clone(row.review||{}),
    industries:clone(industries),
+   campaigns:clone(campaignPlan||[]),
    updatedAt:new Date().toISOString()
   };
   // Validate that the JSONB payload is actually serializable before sending.
@@ -1351,13 +1573,16 @@ async function loadMonthData(){
  }
 }
 function normalizeCampaign(c){
- return {id:c.id||Date.now().toString(),campaign:c.campaign||"",industry:c.industry||"Chưa phân loại",platform:c.platform||"Meta",objective:c.objective||"Conversion",status:c.status||"Planned",
+ return {id:c.id||Date.now().toString(),campaign:c.campaign||"",campaignId:c.campaignId||"",industry:c.industry||"Chưa phân loại",platform:c.platform||"Meta",objective:c.objective||"Conversion",status:c.status||"Planned",
  budgetTarget:safeNum(c.budgetTarget??c.budget),spend:safeNum(c.spend??c.budget),targetLeads:safeNum(c.targetLeads),actualLeads:safeNum(c.actualLeads),
  impressions:safeNum(c.impressions),reach:safeNum(c.reach),clicks:safeNum(c.clicks),conversions:safeNum(c.conversions),revenue:safeNum(c.revenue),targetCPL:safeNum(c.targetCPL),note:c.note||""};
 }
 function getPaidCampaignForm(){
+ const campaignId=document.getElementById("paidCampaignId")?.value||"";
+ const linked=selectedCampaign(campaignId);
  return normalizeCampaign({id:window.editingPaidIndex!=null?(paidCampaigns[window.editingPaidIndex]?.id):Date.now().toString(),
- campaign:document.getElementById("paidCampaign")?.value,industry:document.getElementById("paidIndustry")?.value,platform:document.getElementById("paidPlatform")?.value,objective:document.getElementById("paidObjective")?.value,status:document.getElementById("paidCampaignStatus")?.value,
+ campaignId,campaign:linked?.name||document.getElementById("paidCampaign")?.value||"",
+ industry:linked?.industry||document.getElementById("paidIndustry")?.value,platform:document.getElementById("paidPlatform")?.value,objective:linked?.objective||document.getElementById("paidObjective")?.value,status:document.getElementById("paidCampaignStatus")?.value,
  budgetTarget:document.getElementById("paidBudgetTarget")?.value,spend:document.getElementById("paidSpend")?.value,targetLeads:document.getElementById("paidTargetLeads")?.value,actualLeads:document.getElementById("paidActualLeads")?.value,
  impressions:document.getElementById("paidImpressions")?.value,reach:document.getElementById("paidReach")?.value,clicks:document.getElementById("paidClicks")?.value,conversions:document.getElementById("paidConversions")?.value,revenue:document.getElementById("paidRevenue")?.value,targetCPL:document.getElementById("paidTargetCPL")?.value,note:document.getElementById("paidNote")?.value});
 }
@@ -1374,7 +1599,7 @@ function renderPaidCampaigns(){
  if(paidCampaigns.length)fillPaidForm(paidCampaigns[window.editingPaidIndex??0]);else updatePaidCalc();
 }
 function fillPaidForm(c){
- if(!c)return;const map={paidCampaign:c.campaign,paidIndustry:c.industry||"Chưa phân loại",paidPlatform:c.platform,paidObjective:c.objective,paidCampaignStatus:c.status,paidBudgetTarget:c.budgetTarget,paidSpend:c.spend,paidTargetLeads:c.targetLeads,paidActualLeads:c.actualLeads,paidImpressions:c.impressions,paidReach:c.reach,paidClicks:c.clicks,paidConversions:c.conversions,paidRevenue:c.revenue,paidTargetCPL:c.targetCPL,paidNote:c.note};
+ if(!c)return;populateCampaignSelectors();const map={paidCampaignId:c.campaignId||"",paidCampaign:c.campaign,paidIndustry:c.industry||"Chưa phân loại",paidPlatform:c.platform,paidObjective:c.objective,paidCampaignStatus:c.status,paidBudgetTarget:c.budgetTarget,paidSpend:c.spend,paidTargetLeads:c.targetLeads,paidActualLeads:c.actualLeads,paidImpressions:c.impressions,paidReach:c.reach,paidClicks:c.clicks,paidConversions:c.conversions,paidRevenue:c.revenue,paidTargetCPL:c.targetCPL,paidNote:c.note};
  Object.entries(map).forEach(([id,v])=>{const e=document.getElementById(id);if(e)e.value=v??""});updatePaidCalc();
 }
 function updatePaidCalc(){
@@ -1391,13 +1616,14 @@ async function savePaidMediaPage(){
  }
 }
 async function savePaidCampaign(){
- const c=getPaidCampaignForm();if(!c.campaign.trim()){showToast("Vui lòng nhập tên Campaign");return}
+ const c=getPaidCampaignForm();
+ if(!c.campaignId){showToast("Hãy chọn Campaign từ Campaign Planning.");return}
  if(window.editingPaidIndex!=null)paidCampaigns[window.editingPaidIndex]=c;else paidCampaigns.push(c);
- window.editingPaidIndex=null;renderPaidCampaigns();await saveAllData(true);showToast("Đã lưu Campaign");
+ window.editingPaidIndex=null;renderPaidCampaigns();campaignPaidSync();renderCampaignPlan();await saveAllData(true);await saveCampaignSettings();showToast("Đã lưu Paid Media vào Campaign");
 }
 function editPaidCampaign(i){window.editingPaidIndex=i;fillPaidForm(paidCampaigns[i])}
 async function deletePaidCampaign(i){if(confirm("Xóa Campaign này?")){paidCampaigns.splice(i,1);window.editingPaidIndex=null;renderPaidCampaigns();await saveAllData(true)}}
-function resetPaidForm(){window.editingPaidIndex=null;["paidCampaign","paidBudgetTarget","paidSpend","paidTargetLeads","paidActualLeads","paidImpressions","paidReach","paidClicks","paidConversions","paidRevenue","paidTargetCPL","paidNote"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});setIndustrySelectors();document.getElementById("paidIndustry").value="Chưa phân loại";document.getElementById("paidPlatform").value="Meta";document.getElementById("paidObjective").value="Conversion";document.getElementById("paidCampaignStatus").value="Planned";updatePaidCalc()}
+function resetPaidForm(){window.editingPaidIndex=null;["paidCampaign","paidBudgetTarget","paidSpend","paidTargetLeads","paidActualLeads","paidImpressions","paidReach","paidClicks","paidConversions","paidRevenue","paidTargetCPL","paidNote"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});populateCampaignSelectors();const pc=document.getElementById("paidCampaignId");if(pc)pc.value="";setIndustrySelectors();document.getElementById("paidIndustry").value="Chưa phân loại";document.getElementById("paidPlatform").value="Meta";document.getElementById("paidObjective").value="Conversion";document.getElementById("paidCampaignStatus").value="Planned";updatePaidCalc()}
 function draftStorageKey(){
  return `amoralic_draft_${currentAgency}_${monthKey(currentMonth)}_${currentChannel}`;
 }
@@ -1459,7 +1685,8 @@ async function saveAllData(showMessage=true){
   return false;
  }
 }
-document.getElementById("month")?.addEventListener("change",async e=>{currentMonth=e.target.value;await loadMonthData()});
+document.getElementById("month")?.addEventListener("change",async e=>{currentMonth=e.target.value;await loadCampaignSettings();await loadMonthData()});
+document.getElementById("paidCampaignId")?.addEventListener("change",applySelectedPaidCampaign);
 ["newContentReach","newContentEngagement","newContentLeads","newContentSpend"].forEach(id=>{
  const el=document.getElementById(id);
  if(el)el.addEventListener("input",calcContentMetrics);
@@ -1474,7 +1701,7 @@ window.addEventListener("load",()=>{
  const m=document.getElementById("month")?.value||"2026-08";
  currentMonth=m;
  const p=document.getElementById("kpiMonthPicker");if(p)p.value=m;
- setGlobalChannelSelector();setChannelSelectors();setIndustrySelectors();setAgencySelectors();renderIndustryAllocation();
+ setGlobalChannelSelector();setChannelSelectors();setIndustrySelectors();setAgencySelectors();setCampaignPlanSelectors();populateCampaignSelectors();renderCampaignPlan();renderIndustryAllocation();
 });
 </script>
 
