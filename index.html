@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Amoralic Digital Performance Dashboard v12.1 · Supabase</title>
+<title>Amoralic Digital Performance Dashboard v12.2 · Supabase</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -171,7 +171,7 @@ td strong{font-weight:700}
       <a href="#paid" data-page="paid">Paid Media</a>
       <a href="#review" data-page="review">Nghiệm thu tháng</a>
     </nav>
-    <div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v12.1</div>
+    <div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v12.2</div>
   </aside>
 
   <main class="main">
@@ -250,7 +250,7 @@ td strong{font-weight:700}
     <section class="page" id="page-content">
       <div class="page-head">
         <div><h2>Content Performance</h2><p>Điền thông tin và KPI cho từng content. Chỉ content đã lưu mới xuất hiện trong bảng.</p></div>
-        <div class="action-row"><button onclick="toggleContentForm()">+ Add Content</button><button class="primary" onclick="saveAllData(true)">Save Changes</button></div>
+        <div class="action-row"><button onclick="toggleContentForm()">+ Add Content</button><button class="primary" onclick="saveContentPage()">Save Changes</button></div>
       </div>
 
       <div class="card content-form" id="contentForm">
@@ -503,10 +503,10 @@ function renderKpiEditor(){
  const tbody=document.getElementById("kpiEditor");if(!tbody)return;
  const targetLocked=kpiLocks.targetSubmitted,actualLocked=kpiLocks.actualSubmitted;
  tbody.innerHTML=kpiData.map((k,i)=>{const v=monthlyValues(k),p=achievement(k);return `<tr data-kpi="${i}">
-  <td class="kpi-name"><input style="width:100%;padding:8px;border:1px solid var(--line);border-radius:7px" value="${escapeHtml(k.name)}" oninput="updateKpiName(${i},this.value)"></td>
+  <td class="kpi-name"><input class="kpi-name-input" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:7px" value="${escapeHtml(k.name)}" oninput="updateKpiName(${i},this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"></td>
   ${k.weekly.map((w,wi)=>`<td><div class="week-cell">
-   <div><div class="week-label">Target ${isLocked(i,wi,"target")?"🔒":""}</div><input aria-label="Target ${wi+1}" class="${isLocked(i,wi,"target")?"locked-input":""}" ${isLocked(i,wi,"target")?"disabled":""} type="number" value="${w.target}" oninput="updateWeeklyKpi(${i},${wi},'target',this.value)"></div>
-   <div><div class="week-label">Actual ${isLocked(i,wi,"actual")?"🔒":""}</div><input aria-label="Actual ${wi+1}" class="${isLocked(i,wi,"actual")?"locked-input":""}" ${isLocked(i,wi,"actual")?"disabled":""} type="number" value="${w.actual}" oninput="updateWeeklyKpi(${i},${wi},'actual',this.value)"></div>
+   <div><div class="week-label">Target ${isLocked(i,wi,"target")?"🔒":""}</div><input aria-label="Target ${wi+1}" class="${isLocked(i,wi,"target")?"locked-input":""}" ${isLocked(i,wi,"target")?"disabled":""} type="number" value="${w.target}" oninput="updateWeeklyKpi(${i},${wi},'target',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"></div>
+   <div><div class="week-label">Actual ${isLocked(i,wi,"actual")?"🔒":""}</div><input aria-label="Actual ${wi+1}" class="${isLocked(i,wi,"actual")?"locked-input":""}" ${isLocked(i,wi,"actual")?"disabled":""} type="number" value="${w.actual}" oninput="updateWeeklyKpi(${i},${wi},'actual',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"></div>
   </div></td>`).join("")}
   <td class="month-summary"><strong>${fmt(v.target,k.unit)}</strong><span style="font-size:10px;color:var(--muted)">${targetLocked?"🔒 ":""}Target</span></td>
   <td class="month-summary"><strong>${fmt(v.actual,k.unit)}</strong><span style="font-size:10px;color:var(--muted)">${actualLocked?"🔒 ":""}Actual</span></td>
@@ -656,6 +656,51 @@ function calcContentMetrics(){
  const reach=safeNum(document.getElementById("newContentReach")?.value),eng=safeNum(document.getElementById("newContentEngagement")?.value),leads=safeNum(document.getElementById("newContentLeads")?.value),spend=safeNum(document.getElementById("newContentSpend")?.value);
  document.getElementById("newContentER").value=reach?(eng/reach*100).toFixed(2)+"%":"";
  document.getElementById("newContentCPL").value=leads?fmt(spend/leads,"₫"):"";
+}
+async function saveContentPage(){
+ if(!supabaseInitialized||!supabaseClient){
+  showToast("Supabase chưa sẵn sàng");
+  return false;
+ }
+ try{
+  const row=channelData[currentChannel]||{
+   kpis:clone(DEFAULT_KPIS),
+   locks:normalizeLocks({},DEFAULT_KPIS.length),
+   contents:[],
+   paid:{campaigns:[]},
+   review:{}
+  };
+  const payload={
+   kpis:clone(row.kpis||kpiData||[]),
+   locks:clone(row.locks||kpiLocks||{}),
+   contents:normalizeContents(contents||row.contents||[]),
+   paid:clone(row.paid||getPaidData()||{campaigns:[]}),
+   review:clone(row.review||window.reviewData||{}),
+   updatedAt:new Date().toISOString()
+  };
+  const record={
+   agency:currentAgency,
+   month_key:monthKey(currentMonth),
+   channel:currentChannel,
+   payload
+  };
+  const {error}=await supabaseClient.from("digital_dashboard_data").upsert(
+   record,{onConflict:"agency,month_key,channel"}
+  );
+  if(error)throw error;
+  channelData[currentChannel]=clone(payload);
+  contents=clone(payload.contents);
+  renderContent();renderChannels();
+  setDatabaseStatus("saved","good");
+  showToast(`Content đã được lưu · ${currentChannel} · ${monthLabel(currentMonth)}`);
+  setTimeout(()=>setDatabaseStatus("connected","good"),1800);
+  return true;
+ }catch(err){
+  console.error("Supabase CONTENT PAGE write error:",err);
+  setDatabaseStatus("write error","bad");
+  showToast("Supabase CONTENT WRITE: "+databaseErrorMessage(err));
+  return false;
+ }
 }
 async function saveNewContent(){
  const name=document.getElementById("newContentName")?.value.trim();
@@ -850,13 +895,15 @@ async function testSupabaseConnection(){
 }
 function databaseErrorMessage(err){
  const code=err?.code||err?.status||"unknown";
- const msg=err?.message||err?.details||"Không xác định";
+ const msg=err?.message||"Không xác định";
+ const detail=err?.details?` | ${err.details}`:"";
+ const hint=err?.hint?` | Hint: ${err.hint}`:"";
  if(code==="42501"||/row-level security|permission denied/i.test(msg))
-  return "RLS/permission denied — Supabase đang chặn thao tác này.";
- if(code==="PGRST116")return "Không tìm thấy bản ghi.";
- if(code==="23505")return "Dữ liệu bị trùng khóa.";
+  return "RLS/permission denied — Supabase đang chặn thao tác này."+detail+hint;
+ if(code==="PGRST116")return "Không tìm thấy bản ghi."+detail+hint;
+ if(code==="23505")return "Dữ liệu bị trùng khóa."+detail+hint;
  if(/Failed to fetch|NetworkError|fetch/i.test(msg))return "Không kết nối được Supabase.";
- return `${code} — ${msg}`;
+ return `${code} — ${msg}${detail}${hint}`;
 }
 function kpiDataCount(rawKpis){
  if(!rawKpis)return 0;
@@ -889,11 +936,13 @@ async function upsertChannelData(channel,row){
    review:clone(row.review||{}),
    updatedAt:new Date().toISOString()
   };
+  // Validate that the JSONB payload is actually serializable before sending.
+  const safePayload=JSON.parse(JSON.stringify(payload));
   const {error}=await supabaseClient.from("digital_dashboard_data").upsert({
-   agency:currentAgency,
-   month_key:monthKey(currentMonth),
-   channel,
-   payload
+   agency:String(currentAgency),
+   month_key:String(monthKey(currentMonth)),
+   channel:String(channel),
+   payload:safePayload
   },{onConflict:"agency,month_key,channel"});
   if(error)throw error;
   return true;
