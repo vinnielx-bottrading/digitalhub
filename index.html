@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AMORALIC Digital Performance System · v14.0</title>
+<title>AMORALIC Digital Performance System · v14.1</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -1274,6 +1274,34 @@ html[data-am-theme="dark"] .primary{
   color:#fff!important;
 }
 
+
+/* Auto Insight Engine */
+.executive-summary{
+  margin:0 0 14px;
+  background:linear-gradient(135deg,#F7F3E8,#F4F8F3)!important;
+}
+.executive-kicker{
+  font-size:10px;font-weight:800;letter-spacing:.12em;color:#8B7441;margin-bottom:8px
+}
+.executive-summary p{
+  margin:0;color:#3D3B36;font-size:14px;line-height:1.7;font-weight:500
+}
+.executive-source{
+  margin-top:10px;font-size:10.5px;color:#837D70
+}
+.auto-insight-btn{min-width:120px}
+.insight{
+  min-height:180px;
+}
+.insight-worked{border-top:3px solid #83B5A7!important}
+.insight-missed{border-top:3px solid #C9938E!important}
+.insight-next{border-top:3px solid #D0B36D!important}
+.insight p{line-height:1.65!important}
+@media(max-width:800px){
+  .executive-summary p{font-size:13px}
+  .auto-insight-btn{width:100%}
+}
+
 </style>
 <!-- Supabase schema: use digital_dashboard_supabase_setup.sql supplied with this dashboard. -->
 </head>
@@ -1299,7 +1327,7 @@ html[data-am-theme="dark"] .primary{
   <button type="button" class="am-theme-btn am-theme-dark" data-theme="dark" title="Pastel Grey Black" aria-label="Pastel Grey Black"></button>
 </div>
 
-<div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v14.0</div>
+<div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v14.1</div>
   </aside>
 
   <main class="main">
@@ -1329,11 +1357,31 @@ html[data-am-theme="dark"] .primary{
         <div class="card chart-card"><canvas id="channelChart"></canvas><div id="overviewDataSource" style="font-size:10px;color:var(--muted);margin-top:8px">Data source: Supabase · Month + Channel</div></div>
       </div>
       <div class="weekly-summary-grid" id="overviewWeeklySummary"></div>
-      <div class="section-title"><h2>Insight & Action</h2><span>What happened → Why → Next action</span></div>
+      <div class="section-title">
+        <div>
+          <h2>Nhận định & Hành động</h2>
+          <span>Phân tích tự động từ KPI · Content · Campaign · Paid Media</span>
+        </div>
+        <button type="button" class="secondary auto-insight-btn" onclick="generateAutoInsights(true)">↻ Phân tích lại</button>
+      </div>
+      <div class="executive-summary card" id="executiveSummary">
+        <div class="executive-kicker">EXECUTIVE SUMMARY</div>
+        <p id="executiveSummaryText">Đang tổng hợp dữ liệu để đưa ra nhận định...</p>
+        <div class="executive-source" id="executiveSource">Nguồn: KPI · Content · Campaign · Paid Media</div>
+      </div>
       <div class="insight-grid">
-        <div class="card insight"><h3><span class="dot green-dot"></span>What worked</h3><p>Short-form video generated the strongest reach and engagement. TikTok exceeded its monthly view target and should receive higher content production priority.</p></div>
-        <div class="card insight"><h3><span class="dot red-dot"></span>What missed</h3><p>Lead volume reached 76% of target. Conversion-focused content and CTA performance were below the initial monthly assumption.</p></div>
-        <div class="card insight"><h3><span class="dot yellow-dot"></span>Next month</h3><p>Increase short-video mix, test stronger CTA formats, and reallocate paid budget toward campaigns with lower CPL and higher qualified-lead rate.</p></div>
+        <div class="card insight insight-worked">
+          <h3><span class="dot green-dot"></span>Điều gì đang hiệu quả?</h3>
+          <p id="insightWorked">Đang phân tích...</p>
+        </div>
+        <div class="card insight insight-missed">
+          <h3><span class="dot red-dot"></span>Điều gì chưa đạt?</h3>
+          <p id="insightMissed">Đang phân tích...</p>
+        </div>
+        <div class="card insight insight-next">
+          <h3><span class="dot yellow-dot"></span>Kế hoạch tháng tới</h3>
+          <p id="insightNext">Đang phân tích...</p>
+        </div>
       </div>
     </section>
 
@@ -1598,7 +1646,7 @@ html[data-am-theme="dark"] .primary{
     <section class="page" id="page-review">
       <div class="page-head">
         <div><h2>Nghiệm thu tháng</h2><p>Đối chiếu kế hoạch, Actual, kết quả và bài học của tháng.</p></div>
-        <div class="action-row"><button onclick="exportExcel()">Xuất Excel</button><button class="primary" onclick="saveAllData(true)">Lưu nghiệm thu</button></div>
+        <div class="action-row"><button onclick="exportExcel()">Xuất Excel</button><button class="secondary" onclick="applyAutoInsightToReview()">Dùng nhận định tự động</button><button class="primary" onclick="saveAllData(true)">Lưu nghiệm thu</button></div>
       </div>
       <div class="review-grid">
         <div class="card review-card"><h3>01 · Điều gì đã xảy ra?</h3><textarea id="reviewWhat" style="width:100%;min-height:130px;border:1px solid var(--line);border-radius:9px;padding:10px" placeholder="Ví dụ: Engagement và Video Views vượt kế hoạch; Reach và Leads chưa đạt Target."></textarea></div>
@@ -1888,7 +1936,7 @@ function switchChannel(ch){
  contents=normalizeContents(d.contents||[]);
  paidCampaigns=Array.isArray(d.paid?.campaigns)?d.paid.campaigns.map(normalizeCampaign):(d.paid?.campaign?[normalizeCampaign(d.paid)]:[]);
  window.paidData=d.paid||{};window.reviewData=d.review||{};
- setGlobalChannelSelector();setChannelSelectors();renderKpis();renderKpiEditor();renderIndustryAllocation();renderContent();renderPaidCampaigns();applyReviewData();renderChannels();updateOverviewChart();
+ setGlobalChannelSelector();setChannelSelectors();renderKpis();renderKpiEditor();renderIndustryAllocation();renderContent();renderPaidCampaigns();applyReviewData();renderChannels();updateOverviewChart();;generateAutoInsights(false)
  document.getElementById("kpiChannelTitle").textContent=`${ch} — ${monthLabel(currentMonth)}`;;const cds=document.getElementById("contentDataSource");if(cds)cds.textContent=`Data source: Supabase · ${ch} · ${monthLabel(currentMonth)}`
 }
 function renderKpis(){
@@ -2412,6 +2460,172 @@ function applySelectedPaidCampaign(){
  }
  updatePaidCalc();
 }
+
+function insightPct(v){
+  return `${Math.round(v)}%`;
+}
+function getAllKpisForOverview(){
+  const out=[];
+  channels.forEach(ch=>{
+    const d=channelData[ch];
+    (d?.kpis||[]).map(normalizeKpi).forEach(k=>{
+      const v=monthlyValues(k);
+      out.push({channel:ch,kpi:k,target:v.target,actual:v.actual,achievement:achievement(k),unit:k.unit||""});
+    });
+  });
+  return out;
+}
+function getAllContentForOverview(){
+  const out=[];
+  channels.forEach(ch=>{
+    (channelData[ch]?.contents||[]).forEach(c=>out.push({...c,channel:ch}));
+  });
+  return out;
+}
+function getAllPaidForOverview(){
+  const out=[];
+  channels.forEach(ch=>{
+    const campaigns=Array.isArray(channelData[ch]?.paid?.campaigns)?channelData[ch].paid.campaigns:[];
+    campaigns.forEach(c=>out.push({...normalizeCampaign(c),channel:ch}));
+  });
+  return out;
+}
+function buildAutoInsights(){
+  const kpis=getAllKpisForOverview();
+  const contents=getAllContentForOverview();
+  const paid=getAllPaidForOverview();
+  const campaignPlans=Array.isArray(campaignPlan)?campaignPlan:[];
+
+  // KPI insight
+  const validKpis=kpis.filter(x=>Number.isFinite(x.achievement) && (x.target>0||x.actual>0));
+  const bestKpi=validKpis.slice().sort((a,b)=>b.achievement-a.achievement)[0];
+  const worstKpi=validKpis.slice().sort((a,b)=>a.achievement-b.achievement)[0];
+
+  // Content insight
+  const validContents=contents.filter(c=>safeNum(c.reach)+safeNum(c.engagement)+safeNum(c.leads)>0);
+  let bestContent=null;
+  if(validContents.length){
+    bestContent=validContents.slice().sort((a,b)=>{
+      const as=(safeNum(a.leads)*5)+(safeNum(a.engagement)*2)+(safeNum(a.reach)/10000);
+      const bs=(safeNum(b.leads)*5)+(safeNum(b.engagement)*2)+(safeNum(b.reach)/10000);
+      return bs-as;
+    })[0];
+  }
+
+  // Paid insight
+  const paidWithData=paid.filter(c=>c.spend>0||c.actualLeads>0||c.revenue>0);
+  const totalSpend=paidWithData.reduce((a,c)=>a+c.spend,0);
+  const totalLeads=paidWithData.reduce((a,c)=>a+c.actualLeads,0);
+  const totalRevenue=paidWithData.reduce((a,c)=>a+c.revenue,0);
+  const avgCpl=totalLeads?totalSpend/totalLeads:0;
+  const totalRoas=totalSpend?totalRevenue/totalSpend:0;
+  const bestPaid=paidWithData.slice().sort((a,b)=>{
+    const ar=a.spend?a.revenue/a.spend:0, br=b.spend?b.revenue/b.spend:0;
+    return br-ar;
+  })[0];
+
+  // Campaign planning vs actual
+  const plans=campaignPlans.filter(c=>c.target>0 || c.budget>0 || c.paidActual>0);
+  const bestPlan=plans.slice().sort((a,b)=>{
+    const aa=a.target?a.paidActual/a.target:0, bb=b.target?b.paidActual/b.target:0; return bb-aa;
+  })[0];
+
+  // Worked text
+  let worked="Dữ liệu đang được tổng hợp; chưa có đủ Actual để xác định điểm mạnh rõ ràng.";
+  if(bestKpi && bestKpi.achievement>=100){
+    worked=`${bestKpi.kpi} trên ${bestKpi.channel} đang là điểm sáng, đạt ${insightPct(bestKpi.achievement)} kế hoạch tháng.`;
+    if(bestContent){
+      worked+=` Content “${bestContent.name}” đang đóng góp tốt với ${fmt(safeNum(bestContent.leads))} Leads và ${fmt(safeNum(bestContent.engagement))} Engagement.`;
+    }
+  } else if(bestContent){
+    worked=`Content “${bestContent.name}” đang tạo tín hiệu tốt nhất trong dữ liệu hiện có, với ${fmt(safeNum(bestContent.reach))} Reach và ${fmt(safeNum(bestContent.leads))} Leads.`;
+  }
+
+  // Missed text
+  let missed="Chưa có chỉ số dưới kế hoạch đủ rõ để đưa ra cảnh báo.";
+  if(worstKpi && worstKpi.achievement<100){
+    missed=`${worstKpi.kpi} trên ${worstKpi.channel} mới đạt ${insightPct(worstKpi.achievement)} kế hoạch, thấp hơn mức kỳ vọng.`;
+    if(totalSpend>0 && totalLeads>0){
+      missed+=` Paid Media đã chi ${fmt(totalSpend,"₫")} cho ${fmt(totalLeads)} Leads, tương đương CPL khoảng ${fmt(avgCpl,"₫")}.`;
+    }
+  } else if(totalSpend>0 && totalLeads>0 && totalRoas<1){
+    missed=`Hiệu quả dòng tiền cần được theo dõi: Paid Media đang có ROAS khoảng ${totalRoas.toFixed(2)}x, chưa tạo đủ doanh thu so với mức chi.`;
+  }
+
+  // Next text
+  let next="Tiếp tục duy trì nhóm hoạt động đang đạt kế hoạch và theo dõi các KPI dưới 100%.";
+  const actions=[];
+  if(worstKpi && worstKpi.achievement<90) actions.push(`ưu tiên cải thiện ${worstKpi.kpi} của ${worstKpi.channel}`);
+  if(bestKpi && bestKpi.achievement>=110) actions.push(`nhân rộng cách làm của ${bestKpi.channel}`);
+  if(bestPaid && bestPaid.spend>0){
+    const roas=bestPaid.revenue/bestPaid.spend;
+    if(roas>=1.5) actions.push(`ưu tiên Campaign “${bestPaid.campaign}” với ROAS ${roas.toFixed(2)}x`);
+  }
+  if(avgCpl>0 && bestKpi && bestKpi.kpi.toLowerCase().includes("lead")) actions.push("tối ưu CPL trước khi tăng ngân sách");
+  if(actions.length)next=`Tháng tới nên ${actions.join("; ")}.`;
+
+  // Executive summary
+  const totalValid=validKpis.length;
+  const avgAch=totalValid?validKpis.reduce((a,x)=>a+x.achievement,0)/totalValid:0;
+  let summary=`Digital ${monthLabel(currentMonth)} hiện có mức hoàn thành KPI trung bình khoảng ${Math.round(avgAch)}%. `;
+  if(bestKpi) summary+=`Điểm sáng là ${bestKpi.kpi} trên ${bestKpi.channel} (${Math.round(bestKpi.achievement)}%). `;
+  if(worstKpi && worstKpi.achievement<100) summary+=`Điểm cần cải thiện là ${worstKpi.kpi} trên ${worstKpi.channel} (${Math.round(worstKpi.achievement)}%). `;
+  if(totalSpend>0 && totalLeads>0) summary+=`Paid Media đã sử dụng ${fmt(totalSpend,"₫")} và tạo ${fmt(totalLeads)} Leads, CPL khoảng ${fmt(avgCpl,"₫")}.`;
+  else summary+="Chưa đủ dữ liệu Paid Media để đánh giá hiệu quả dòng tiền.";
+
+  return {
+    worked,missed,next,summary,
+    metrics:{
+      avgAchievement:avgAch,totalSpend,totalLeads,avgCpl,totalRevenue,totalRoas,
+      bestKpi:bestKpi?.kpi||"",worstKpi:worstKpi?.kpi||"",
+      channelsWithData:new Set(validKpis.map(x=>x.channel)).size,
+      campaignCount:plans.length
+    },
+    generatedAt:new Date().toISOString()
+  };
+}
+async function saveAutoInsights(insights){
+  if(!supabaseInitialized||!supabaseClient)return false;
+  try{
+    const key=`auto_insight__${currentAgency}__${monthKey(currentMonth)}`;
+    const {error}=await supabaseClient.from("digital_dashboard_settings").upsert({
+      key,value:insights,updated_at:new Date().toISOString()
+    });
+    if(error)throw error;
+    return true;
+  }catch(err){
+    console.warn("Auto insight save:",err);
+    return false;
+  }
+}
+async function loadSavedAutoInsights(){
+  if(!supabaseInitialized||!supabaseClient)return null;
+  try{
+    const key=`auto_insight__${currentAgency}__${monthKey(currentMonth)}`;
+    const {data,error}=await supabaseClient.from("digital_dashboard_settings").select("value").eq("key",key).maybeSingle();
+    if(error)throw error;
+    return data?.value||null;
+  }catch(err){return null}
+}
+function renderAutoInsights(insights){
+  if(!insights)return;
+  const set=(id,text)=>{const el=document.getElementById(id);if(el)el.textContent=text};
+  set("executiveSummaryText",insights.summary);
+  set("insightWorked",insights.worked);
+  set("insightMissed",insights.missed);
+  set("insightNext",insights.next);
+  const src=document.getElementById("executiveSource");
+  if(src)src.textContent=`Nguồn: ${insights.metrics.channelsWithData} Channel · ${insights.metrics.campaignCount} Campaign · KPI · Content · Paid Media · cập nhật ${new Date(insights.generatedAt).toLocaleString("vi-VN")}`;
+}
+async function generateAutoInsights(showToastMessage=false){
+  const insights=buildAutoInsights();
+  renderAutoInsights(insights);
+  const saved=await saveAutoInsights(insights);
+  if(showToastMessage){
+    showToast(saved?"Đã phân tích và lưu nhận định tự động.":"Đã phân tích nhận định; chưa lưu được lên Supabase.");
+  }
+  return insights;
+}
 function navigate(page){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));const target=document.getElementById("page-"+page)||document.getElementById("page-overview");target.classList.add("active");if(page==="campaigns"){setCampaignPlanSelectors();renderCampaignPlan()}populateCampaignSelectors();document.querySelectorAll("#mainNav a").forEach(a=>a.classList.toggle("active",a.dataset.page===page));if(location.hash!=="#"+page)history.replaceState(null,"","#"+page);closeMobileNav();window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll("#mainNav a").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();navigate(a.dataset.page)}));
 window.addEventListener("hashchange",()=>navigate(location.hash.replace("#","")||"overview"));
@@ -2655,6 +2869,22 @@ function restoreKpiDraft(){
   return true;
  }catch(e){ console.warn("Draft restore failed",e); return false; }
 }
+
+async function applyAutoInsightToReview(){
+  const saved=await loadSavedAutoInsights();
+  const ins=saved||buildAutoInsights();
+  const map={
+    reviewWhat:ins.worked,
+    reviewWhy:ins.missed,
+    reviewLearned:ins.summary,
+    reviewNext:ins.next
+  };
+  Object.entries(map).forEach(([id,v])=>{const e=document.getElementById(id);if(e)e.value=v});
+  collectReviewData();
+  setDatabaseStatus("unsaved","warn");
+  showToast("Đã đưa nhận định tự động vào Nghiệm thu tháng. Bạn có thể chỉnh sửa trước khi lưu.");
+}
+
 async function saveAllData(showMessage=true){
  if(!supabaseInitialized||!supabaseClient){showToast("Supabase chưa sẵn sàng");return false}
  try{
