@@ -1580,9 +1580,42 @@ html[data-am-theme="dark"] .primary{
     <!-- MONTHLY REVIEW -->
     <section class="page" id="page-review">
       <div class="page-head">
-        <div><h2>Nghiệm thu tháng</h2><p>Đối chiếu kế hoạch, Actual, kết quả và bài học của tháng.</p></div>
+        <div><h2>Nghiệm thu tháng</h2><p>Tổng hợp toàn bộ hoạt động Digital trong tháng — KPI, Content, Campaign, Paid Media trên tất cả các kênh — cộng với đối chiếu kế hoạch và bài học.</p></div>
         <div class="action-row"><button onclick="exportExcel()">Xuất Excel</button><button class="secondary" onclick="applyAutoInsightToReview()">Dùng nhận định tự động</button><button class="primary" onclick="saveAllData(true)">Lưu nghiệm thu</button></div>
       </div>
+
+      <div class="section-title" style="margin-top:0"><h2>Tổng quan tháng</h2><span>Toàn bộ kênh · Toàn Agency</span></div>
+      <div class="campaign-summary" id="reviewOverviewStats"></div>
+
+      <div class="section-title"><h2>KPI theo từng kênh</h2><span>Achievement trung bình mỗi kênh</span></div>
+      <div class="card table-card">
+        <table>
+          <thead><tr><th>Channel</th><th>Achievement</th><th>Status</th><th>Paid Spend</th><th>Paid Leads</th><th>CPL</th><th>ROAS</th></tr></thead>
+          <tbody id="reviewChannelTable"></tbody>
+        </table>
+      </div>
+
+      <div class="section-title"><h2>Content nổi bật trong tháng</h2><span id="reviewContentMeta">Toàn bộ kênh</span></div>
+      <div class="card table-card">
+        <table>
+          <thead><tr><th>#</th><th>Content</th><th>Channel</th><th>Pillar</th><th>Reach</th><th>Engagement</th><th>Leads</th></tr></thead>
+          <tbody id="reviewContentTable"></tbody>
+        </table>
+      </div>
+
+      <div class="section-title"><h2>Campaign Planning tổng kết</h2><span>Target vs Actual · Budget vs Spend</span></div>
+      <div class="campaign-summary" id="reviewCampaignStats"></div>
+      <div class="card table-card">
+        <table>
+          <thead><tr><th>#</th><th>Campaign</th><th>Industry</th><th>Target</th><th>Budget</th><th>Paid Actual</th><th>Spend</th><th>Achievement</th></tr></thead>
+          <tbody id="reviewCampaignTable"></tbody>
+        </table>
+      </div>
+
+      <div class="section-title"><h2>Paid Media tổng kết</h2><span>Toàn bộ Campaign quảng cáo trong tháng</span></div>
+      <div class="paid-metric-grid" id="reviewPaidStats"></div>
+
+      <div class="section-title"><h2>Nhận định & bài học</h2><span>Tự viết hoặc dùng nhận định tự động</span></div>
       <div class="review-grid">
         <div class="card review-card"><h3>01 · Điều gì đã xảy ra?</h3><textarea id="reviewWhat" style="width:100%;min-height:130px;border:1px solid var(--line);border-radius:9px;padding:10px" placeholder="Ví dụ: Engagement và Video Views vượt kế hoạch; Reach và Leads chưa đạt Target."></textarea></div>
         <div class="card review-card"><h3>02 · Vì sao?</h3><textarea id="reviewWhy" style="width:100%;min-height:130px;border:1px solid var(--line);border-radius:9px;padding:10px" placeholder="Ví dụ: Short video hoạt động tốt nhưng CTA chuyển đổi chưa hiệu quả."></textarea></div>
@@ -1591,9 +1624,9 @@ html[data-am-theme="dark"] .primary{
       </div>
       <div class="section-title"><h2>Kết luận quản trị</h2><span>Tổng quan hiệu quả Digital</span></div>
       <div class="card">
-        <div style="font-size:32px;font-weight:800;margin-bottom:6px">106 / 100</div>
-        <div style="font-size:13px;color:var(--green);font-weight:700">VƯỢT KẾ HOẠCH THÁNG</div>
-        <p style="font-size:13px;color:var(--muted);line-height:1.6">Channel and content performance compensated for the shortfall in lead generation. The main priority for the next month is improving conversion efficiency without sacrificing organic reach.</p>
+        <div style="font-size:32px;font-weight:800;margin-bottom:6px" id="reviewConclusionScore">— / 100</div>
+        <div style="font-size:13px;font-weight:700" id="reviewConclusionLabel">Đang tính toán...</div>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6" id="reviewConclusionText">Đang tổng hợp dữ liệu toàn Agency để đưa ra kết luận...</p>
       </div>
     </section>
     <div class="footer">Amoralic Digital Performance System · Plan → Actual → Achievement → Insight → Action</div>
@@ -2032,9 +2065,11 @@ function addChannel(){
  const name=prompt("Tên Digital Channel mới:");if(!name)return;
  if(!channels.includes(name)){channels.push(name);channelData[name]={kpis:clone(DEFAULT_KPIS),locks:normalizeLocks({},DEFAULT_KPIS.length),contents:[],paid:{campaigns:[]},review:{}};setGlobalChannelSelector();setChannelSelectors();currentChannel=name;switchChannel(name);saveAllData(true)}
 }
-function renderChannels(){
- const table=document.getElementById("channelTable");
- const channelRows=channels.map(ch=>{
+/* Extracted out of renderChannels() so Nghiệm thu tháng (Monthly Review) can reuse the
+   exact same per-channel achievement/spend/leads/CPL/ROAS math instead of duplicating
+   it — one source of truth, so the two pages can never silently drift apart. */
+function getChannelSummaries(){
+ return channels.map(ch=>{
   const d=channelData[ch]||{}, ks=(d.kpis||[]).map(normalizeKpi);
   const avg=ks.length?ks.reduce((sum,k)=>sum+achievement(k),0)/ks.length:0;
   const campaigns=Array.isArray(d.paid?.campaigns)?d.paid.campaigns.map(normalizeCampaign):[];
@@ -2045,6 +2080,10 @@ function renderChannels(){
   const roas=spend?revenue/spend:0;
   return {ch,avg,spend,leads,cpl,roas};
  });
+}
+function renderChannels(){
+ const table=document.getElementById("channelTable");
+ const channelRows=getChannelSummaries();
  if(table)table.innerHTML=channelRows.map(r=>`<tr>
   <td><strong>${escapeHtml(r.ch)}</strong></td>
   <td>${Math.round(r.avg)}%</td>
@@ -2068,7 +2107,122 @@ function renderChannels(){
    ${r.leads?fmt(r.leads)+" Paid Leads":"No Paid Leads"} · ${r.cpl?fmt(r.cpl,"₫")+" CPL":"No CPL"} · ${r.roas?r.roas.toFixed(2)+"x ROAS":"No ROAS"}
   </div>
  </div>`).join("");
-}function renderContent(){
+}
+/* NEW: "Nghiệm thu tháng" used to be just 4 free-text boxes plus a hardcoded
+   "106 / 100 · VƯỢT KẾ HOẠCH THÁNG" block that never reflected real data (English
+   text, made-up score — a leftover placeholder). This turns it into an actual
+   monthly wrap-up: every section below is computed live from the SAME data the rest
+   of the dashboard uses, aggregated across ALL channels for the current month/agency
+   (not just the single channel picked in the top filter), reusing existing helpers
+   (buildAutoInsights, getChannelSummaries, getAllContentForOverview, campaignPlan)
+   so nothing here can silently drift from what Overview/Channels/Content/Paid Media
+   already show. Called from navigate() whenever the "Nghiệm thu tháng" tab opens.
+   Deliberately defined here in the main script (not the Supabase script further down)
+   — navigate() can fire synchronously during page boot (e.g. reloading on a
+   "#review" URL), and at that point the Supabase script hasn't run yet, so a
+   function defined only there would not exist yet and would throw, the same class
+   of bug as the missing ensureOverviewCharts() found earlier. */
+function renderMonthlyReview(){
+ const insights=buildAutoInsights();
+ const m=insights.metrics;
+
+ const overviewEl=document.getElementById("reviewOverviewStats");
+ if(overviewEl)overviewEl.innerHTML=`
+  <div class="mini-stat"><strong>${Math.round(m.avgAchievement)}%</strong><span>KPI trung bình (toàn Agency)</span></div>
+  <div class="mini-stat"><strong>${m.channelsWithData}/${channels.length}</strong><span>Kênh có dữ liệu KPI</span></div>
+  <div class="mini-stat"><strong>${m.campaignCount}</strong><span>Campaign đang chạy</span></div>
+  <div class="mini-stat"><strong>${fmt(m.totalLeads)}</strong><span>Leads từ Paid Media</span></div>
+  <div class="mini-stat"><strong>${m.totalSpend?fmt(m.totalSpend,"₫"):"0₫"}</strong><span>Tổng chi Paid Media</span></div>
+  <div class="mini-stat"><strong>${m.totalRoas?m.totalRoas.toFixed(2)+"x":"—"}</strong><span>ROAS trung bình</span></div>
+ `;
+
+ const chTable=document.getElementById("reviewChannelTable");
+ if(chTable){
+  const rows=getChannelSummaries();
+  chTable.innerHTML=rows.length?rows.map(r=>`<tr>
+   <td><strong>${escapeHtml(r.ch)}</strong></td>
+   <td><strong>${Math.round(r.avg)}%</strong></td>
+   <td><span class="badge ${status(r.avg)}">${label(r.avg)}</span></td>
+   <td>${r.spend?fmt(r.spend,"₫"):"—"}</td>
+   <td>${r.leads?fmt(r.leads):"—"}</td>
+   <td>${r.cpl?fmt(r.cpl,"₫"):"—"}</td>
+   <td>${r.roas?r.roas.toFixed(2)+"x":"—"}</td>
+  </tr>`).join(""):`<tr><td colspan="7" class="empty-state">Chưa có dữ liệu KPI kênh nào trong tháng này.</td></tr>`;
+ }
+
+ const allContent=getAllContentForOverview();
+ const validContent=allContent.filter(c=>safeNum(c.reach)+safeNum(c.engagement)+safeNum(c.leads)>0);
+ const topContent=validContent.slice().sort((a,b)=>{
+  const as=(safeNum(a.leads)*5)+(safeNum(a.engagement)*2)+(safeNum(a.reach)/10000);
+  const bs=(safeNum(b.leads)*5)+(safeNum(b.engagement)*2)+(safeNum(b.reach)/10000);
+  return bs-as;
+ }).slice(0,5);
+ const contentMeta=document.getElementById("reviewContentMeta");
+ if(contentMeta)contentMeta.textContent=`${allContent.length} content toàn Agency · Top ${topContent.length} theo hiệu quả`;
+ const contentTable=document.getElementById("reviewContentTable");
+ if(contentTable){
+  contentTable.innerHTML=topContent.length?topContent.map((c,i)=>`<tr>
+   <td><strong>${i+1}</strong></td>
+   <td><strong>${escapeHtml(c.name)}</strong></td>
+   <td>${escapeHtml(c.channel)}</td>
+   <td><span class="badge blue">${escapeHtml(c.pillar||"—")}</span></td>
+   <td>${fmt(c.reach)}</td>
+   <td>${fmt(c.engagement)}</td>
+   <td>${fmt(c.leads)}</td>
+  </tr>`).join(""):`<tr><td colspan="7" class="empty-state">Chưa có Content nào ghi nhận Reach/Engagement/Leads trong tháng này.</td></tr>`;
+ }
+
+ campaignPaidSync();
+ const campStats=document.getElementById("reviewCampaignStats");
+ const totalTarget=campaignPlan.reduce((a,c)=>a+safeNum(c.target),0);
+ const totalBudget=campaignPlan.reduce((a,c)=>a+safeNum(c.budget),0);
+ const totalActual=campaignPlan.reduce((a,c)=>a+safeNum(c.paidActual),0);
+ const totalCampSpend=campaignPlan.reduce((a,c)=>a+safeNum(c.spend),0);
+ if(campStats)campStats.innerHTML=`
+  <div class="mini-stat"><strong>${campaignPlan.length}</strong><span>Campaign</span></div>
+  <div class="mini-stat"><strong>${fmt(totalTarget)}</strong><span>Tổng Target</span></div>
+  <div class="mini-stat"><strong>${fmt(totalBudget,"₫")}</strong><span>Ngân sách kế hoạch</span></div>
+  <div class="mini-stat"><strong>${fmt(totalActual)}</strong><span>Paid Actual</span></div>
+  <div class="mini-stat"><strong>${fmt(totalCampSpend,"₫")}</strong><span>Đã chi thực tế</span></div>
+ `;
+ const campTable=document.getElementById("reviewCampaignTable");
+ if(campTable){
+  campTable.innerHTML=campaignPlan.length?campaignPlan.map((c,i)=>{
+   const ach=c.target?c.paidActual/c.target*100:0;
+   return `<tr>
+    <td>${i+1}</td>
+    <td><strong>${escapeHtml(c.name)}</strong></td>
+    <td><span class="badge blue">${escapeHtml(c.industry)}</span></td>
+    <td>${fmt(c.target)}</td>
+    <td>${fmt(c.budget,"₫")}</td>
+    <td>${fmt(c.paidActual)}</td>
+    <td>${fmt(c.spend,"₫")}</td>
+    <td><span class="badge ${status(ach)}">${Math.round(ach)}%</span></td>
+   </tr>`;
+  }).join(""):`<tr><td colspan="8" class="empty-state">Chưa có Campaign Plan nào trong tháng này.</td></tr>`;
+ }
+
+ const paidStats=document.getElementById("reviewPaidStats");
+ if(paidStats)paidStats.innerHTML=`
+  <div class="paid-metric"><span>Total Spend</span><strong>${fmt(m.totalSpend,"₫")}</strong></div>
+  <div class="paid-metric"><span>Total Leads</span><strong>${fmt(m.totalLeads)}</strong></div>
+  <div class="paid-metric"><span>Average CPL</span><strong>${m.avgCpl?fmt(m.avgCpl,"₫"):"—"}</strong></div>
+  <div class="paid-metric"><span>Total Revenue</span><strong>${fmt(m.totalRevenue,"₫")}</strong></div>
+  <div class="paid-metric"><span>ROAS</span><strong>${m.totalRoas?m.totalRoas.toFixed(2)+"x":"—"}</strong></div>
+ `;
+
+ const overall=Math.round(m.avgAchievement);
+ const scoreEl=document.getElementById("reviewConclusionScore");
+ const labelEl=document.getElementById("reviewConclusionLabel");
+ const textEl=document.getElementById("reviewConclusionText");
+ if(scoreEl)scoreEl.textContent=`${overall} / 100`;
+ if(labelEl){
+  labelEl.textContent=overall>=100?"VƯỢT KẾ HOẠCH THÁNG":overall>=90?"GẦN ĐẠT KẾ HOẠCH THÁNG":"CHƯA ĐẠT KẾ HOẠCH THÁNG";
+  labelEl.style.color=overall>=100?"var(--green)":overall>=90?"var(--yellow)":"var(--red)";
+ }
+ if(textEl)textEl.textContent=insights.summary;
+}
+function renderContent(){
  const table=document.getElementById("contentTable");if(!table)return;
  table.innerHTML=contents.map((c,i)=>`<tr><td><strong>${i+1}</strong></td><td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.audience||"—")}</td><td><span class="badge blue">${escapeHtml(c.industry||"Chưa phân loại")}</span></td><td><span class="badge blue">${escapeHtml(c.pillar)}</span></td><td>${escapeHtml(c.channel)}</td><td>${fmt(c.reach)}</td><td>${fmt(c.engagement)}</td><td><strong>${safeNum(c.er).toFixed(2)}%</strong></td><td>${fmt(c.views)}</td><td>${fmt(c.leads)}</td><td>${c.cpl?fmt(c.cpl,"₫"):"—"}</td><td><span class="badge ${c.leads>0||c.engagement>0?"good":"warn"}">${c.leads>0||c.engagement>0?"RECORDED":"CHECK"}</span></td><td><div class="content-row-actions"><button class="small-action" onclick="editContent(${i})">Edit</button><button class="small-action" onclick="deleteContent(${i})">Delete</button></div></td></tr>`).join("");
 }
@@ -2706,7 +2860,7 @@ function updatePlannerReminder(){
 }
 window.addEventListener("scroll",updatePlannerReminder,{passive:true});
 window.addEventListener("resize",updatePlannerReminder);
-function navigate(page){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));const target=document.getElementById("page-"+page)||document.getElementById("page-overview");target.classList.add("active");if(page==="campaigns"){setCampaignPlanSelectors();renderCampaignPlan()}if(page==="channels"){renderChannels();ensureChannelPageChart()}if(page==="paid"){renderPaidCampaigns();ensurePaidPageChart()}populateCampaignSelectors();document.querySelectorAll("#mainNav a").forEach(a=>a.classList.toggle("active",a.dataset.page===page));if(location.hash!=="#"+page)history.replaceState(null,"","#"+page);closeMobileNav();window.scrollTo({top:0,behavior:"smooth"})}
+function navigate(page){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));const target=document.getElementById("page-"+page)||document.getElementById("page-overview");target.classList.add("active");if(page==="campaigns"){setCampaignPlanSelectors();renderCampaignPlan()}if(page==="channels"){renderChannels();ensureChannelPageChart()}if(page==="paid"){renderPaidCampaigns();ensurePaidPageChart()}if(page==="review"){renderMonthlyReview()}populateCampaignSelectors();document.querySelectorAll("#mainNav a").forEach(a=>a.classList.toggle("active",a.dataset.page===page));if(location.hash!=="#"+page)history.replaceState(null,"","#"+page);closeMobileNav();window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll("#mainNav a").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();navigate(a.dataset.page)}));
 window.addEventListener("hashchange",()=>navigate(location.hash.replace("#","")||"overview"));
 document.getElementById("kpiMonthPicker")?.addEventListener("change",async e=>{currentMonth=e.target.value;document.getElementById("month").value=currentMonth;await loadCampaignSettings();await loadMonthData()});
@@ -2969,6 +3123,7 @@ async function applyAutoInsightToReview(){
   Object.entries(map).forEach(([id,v])=>{const e=document.getElementById(id);if(e)e.value=v});
   collectReviewData();
   setDatabaseStatus("unsaved","warn");
+  renderMonthlyReview();
   showToast("Đã đưa nhận định tự động vào Nghiệm thu tháng. Bạn có thể chỉnh sửa trước khi lưu.");
 }
 async function saveAllData(showMessage=true){
