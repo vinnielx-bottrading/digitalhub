@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Amoralic Digital Performance Dashboard v14.0 · Supabase</title>
+<title>AMORALIC Digital Performance System · v14.0</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -18,7 +18,7 @@
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
 .app{display:flex;min-height:100vh}
-.sidebar{width:245px;background:#15171b;color:#fff;padding:24px 16px;position:fixed;inset:0 auto 0 0}
+.sidebar{position:relative;width:245px;background:#15171b;color:#fff;padding:24px 16px;position:fixed;inset:0 auto 0 0}
 .brand{font-size:18px;font-weight:800;padding:0 12px 28px;letter-spacing:-.4px}
 .brand span{color:#8ee1c2}
 .nav{display:flex;flex-direction:column;gap:6px}
@@ -606,17 +606,6 @@ table tr:hover td{
   background:#F8F7F3!important;
 }
 
-/* Demo banner */
-.theme-demo-banner{
-  background:#EFF2F4!important;
-  border-color:#DCE0E3!important;
-  color:#626A76!important;
-}
-.theme-demo-banner strong{
-  color:#5E7698!important;
-}
-
-
 /* AMORALIC Calm Workspace UI — low-glare long-session palette */
 :root{
   --bg:#E8E7E3;
@@ -746,17 +735,6 @@ h1,h2,h3,.section-title h2{
 .muted{
   color:#747983!important;
 }
-
-/* Demo banner */
-.theme-demo-banner{
-  background:#E1E4E5!important;
-  border-color:#D1D4D4!important;
-  color:#666D77!important;
-}
-.theme-demo-banner strong{
-  color:#617896!important;
-}
-
 
 /* AMORALIC Warm Pastel Yellow — soft, warm, low-glare */
 :root{
@@ -1187,21 +1165,23 @@ button.secondary,.secondary{
 table th{background:var(--theme-hover)!important;color:var(--theme-muted)!important}
 table tr:hover td{background:var(--theme-hover)!important}
 
-/* Theme selector */
+/* Theme selector — placed in sidebar, below Monthly Review */
 .am-theme-switcher{
-  position:fixed;
-  top:14px;
+  position:absolute;
+  left:18px;
   right:18px;
-  z-index:9999;
+  bottom:92px;
+  z-index:20;
   display:flex;
   align-items:center;
+  justify-content:space-between;
   gap:6px;
-  padding:6px;
-  background:rgba(255,255,255,.72);
-  backdrop-filter:blur(10px);
-  border:1px solid rgba(130,120,100,.18);
-  border-radius:999px;
-  box-shadow:0 4px 16px rgba(70,60,40,.08);
+  padding:7px 9px;
+  background:rgba(255,255,255,.62);
+  backdrop-filter:blur(8px);
+  border:1px solid rgba(130,120,100,.16);
+  border-radius:12px;
+  box-shadow:0 3px 10px rgba(70,60,40,.045);
 }
 .am-theme-label{
   font-size:10px;
@@ -1232,8 +1212,9 @@ table tr:hover td{background:var(--theme-hover)!important}
 
 @media(max-width:768px){
   .am-theme-switcher{
-    top:8px;
-    right:8px;
+    left:14px;
+    right:14px;
+    bottom:84px;
   }
   .am-theme-label{display:none}
 }
@@ -1297,34 +1278,6 @@ html[data-am-theme="dark"] .primary{
 <!-- Supabase schema: use digital_dashboard_supabase_setup.sql supplied with this dashboard. -->
 </head>
 <body>
-<div class="ux-legend" style="
-  margin:10px 18px 0;
-  display:flex;
-  flex-wrap:wrap;
-  gap:7px;
-  align-items:center;
-  font-size:11.5px;
-  color:#706A5D;
-">
-  <span style="font-weight:700;margin-right:3px;">Quy ước thao tác:</span>
-  <span style="padding:5px 9px;border-radius:999px;background:#E9E0C9;border:1px solid #D9CCAE;">Nhập liệu</span>
-  <span style="padding:5px 9px;border-radius:999px;background:#C3A55D;color:#fff;">Lưu / Submit</span>
-  <span style="padding:5px 9px;border-radius:999px;background:#E7E3DA;border:1px solid #D5D0C3;">Đã khóa</span>
-</div>
-
-<div class="theme-demo-banner" style="
-  margin:14px 18px 0;
-  padding:10px 14px;
-  border:1px solid #DCE8F8;
-  border-radius:12px;
-  background:linear-gradient(90deg,#EEF5FF,#F1FBF8);
-  color:#41506A;
-  font-size:12px;
-">
-  <strong style="color:#1F6FEB">AMORALIC · Theme Switcher Demo</strong>
-  &nbsp;—&nbsp; tông vàng pastel ấm, với khu vực nhập liệu và nút thao tác được phân cấp rõ ràng.
-</div>
-
 <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Mở menu" onclick="toggleMobileNav()"><span></span><span></span><span></span></button>
 <div class="mobile-nav-backdrop" id="mobileNavBackdrop" onclick="closeMobileNav()"></div>
 <div class="app">
@@ -1339,7 +1292,14 @@ html[data-am-theme="dark"] .primary{
       <a href="#paid" data-page="paid">Paid Media</a>
       <a href="#review" data-page="review">Nghiệm thu tháng</a>
     </nav>
-    <div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v14.0</div>
+    <div class="am-theme-switcher" aria-label="Chọn giao diện">
+  <span class="am-theme-label">Giao diện</span>
+  <button type="button" class="am-theme-btn am-theme-yellow" data-theme="yellow" title="Pastel Yellow" aria-label="Pastel Yellow"></button>
+  <button type="button" class="am-theme-btn am-theme-mint" data-theme="mint" title="Pastel Mint" aria-label="Pastel Mint"></button>
+  <button type="button" class="am-theme-btn am-theme-dark" data-theme="dark" title="Pastel Grey Black" aria-label="Pastel Grey Black"></button>
+</div>
+
+<div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v14.0</div>
   </aside>
 
   <main class="main">
