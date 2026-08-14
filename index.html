@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AMORALIC Digital Performance System · v14.2</title>
+<title>AMORALIC Digital Performance System · v14.3</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -1340,6 +1340,18 @@ html[data-am-theme="dark"] .primary{
 .chart-card{min-height:330px!important}
 .chart-card canvas{width:100%!important;height:270px!important;display:block!important}
 
+
+/* Channel + Paid performance cards */
+#channelChartPage,#paidChart{min-height:260px}
+#channelScore{min-height:240px}
+.paid-campaign-table,.table-card{overflow:auto}
+.empty-state{
+  padding:35px!important;
+  text-align:center!important;
+  color:var(--muted)!important;
+  font-size:13px!important;
+}
+
 </style>
 <!-- Supabase schema: use digital_dashboard_supabase_setup.sql supplied with this dashboard. -->
 </head>
@@ -1365,7 +1377,7 @@ html[data-am-theme="dark"] .primary{
   <button type="button" class="am-theme-btn am-theme-dark" data-theme="dark" title="Pastel Grey Black" aria-label="Pastel Grey Black"></button>
 </div>
 
-<div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v14.2</div>
+<div class="sidebar-bottom">Amoralic Digital<br>Performance Management System · v14.3</div>
   </aside>
 
   <main class="main">
@@ -2127,6 +2139,7 @@ function renderChannels(){
   <td><span class="badge ${status(r.avg)}">${label(r.avg)}</span></td>
  </tr>`).join("");
 
+ ensureChannelPageChart();
  const score=document.getElementById("channelScore");
  if(score)score.innerHTML=channelRows.map(r=>`<div style="margin:0 0 15px">
   <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
@@ -2279,32 +2292,91 @@ async function deleteContent(i){
 }
 function makeCharts(){
  if(typeof Chart==="undefined")return;
- const trend=document.getElementById("trendChart");if(trend)charts.trend=new Chart(trend,{type:"line",data:{labels:["W1","W2","W3","W4"],datasets:[{label:"Target",data:[0,0,0,0],borderDash:[6,6],tension:.35},{label:"Actual",data:[0,0,0,0],tension:.35}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{y:{beginAtZero:true}}}});
- const ch=document.getElementById("channelChart");if(ch)charts.channel=new Chart(ch,{type:"bar",data:{labels:channels,datasets:[{label:"Achievement %",data:channels.map(()=>0)}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{y:{beginAtZero:true}}}});
- const chp=document.getElementById("channelChartPage");if(chp)charts.channelPage=new Chart(chp,{type:"bar",data:{labels:channels,datasets:[{label:"Achievement %",data:channels.map(()=>0)}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{y:{beginAtZero:true}}}});
- const paid=document.getElementById("paidChart");if(paid)charts.paid=new Chart(paid,{type:"doughnut",data:{labels:["Media Spend","Remaining"],datasets:[{data:[96,4]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}}}});
+ const trend=document.getElementById("trendChart");
+ if(trend && !charts.trend)charts.trend=new Chart(trend.getContext("2d"),{
+  type:"line",
+  data:{labels:["W1","W2","W3","W4"],datasets:[
+   {label:"Target",data:[0,0,0,0],borderDash:[6,6],tension:.35},
+   {label:"Actual",data:[0,0,0,0],tension:.35}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{y:{beginAtZero:true}}}
+ });
+ const ch=document.getElementById("channelChart");
+ if(ch && !charts.channel)charts.channel=new Chart(ch.getContext("2d"),{
+  type:"bar",data:{labels:channels,datasets:[{label:"Achievement %",data:channels.map(()=>0)}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{y:{beginAtZero:true,max:140}}}
+ });
 }
-function ensureOverviewCharts(){
+function ensureChannelPageChart(){
   if(typeof Chart==="undefined")return;
-  const trend=document.getElementById("trendChart");
-  const channel=document.getElementById("channelChart");
-  if(trend && !charts.trend){
-    charts.trend=new Chart(trend.getContext("2d"),{
-      type:"line",
-      data:{labels:["Week 1","Week 2","Week 3","Week 4"],datasets:[
-        {label:"Target",data:[0,0,0,0],borderWidth:2,tension:.35,fill:false},
-        {label:"Actual",data:[0,0,0,0],borderWidth:2,tension:.35,fill:false}
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{y:{beginAtZero:true}}}
-    });
+  const el=document.getElementById("channelChartPage");
+  if(!el)return;
+  if(charts.channelPage){
+    try{charts.channelPage.destroy()}catch(e){}
+    charts.channelPage=null;
   }
-  if(channel && !charts.channel){
-    charts.channel=new Chart(channel.getContext("2d"),{
-      type:"bar",
-      data:{labels:channels,datasets:[{label:"Achievement %",data:[],borderWidth:1}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:140}}}
-    });
+  const scores=channels.map(ch=>{
+    const ks=(channelData[ch]?.kpis||[]).map(normalizeKpi);
+    return ks.length?Math.round(ks.reduce((sum,k)=>sum+achievement(k),0)/ks.length):0;
+  });
+  charts.channelPage=new Chart(el.getContext("2d"),{
+    type:"bar",
+    data:{labels:channels,datasets:[{
+      label:"KPI Achievement %",
+      data:scores,
+      borderWidth:1
+    }]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,max:140,ticks:{callback:v=>v+"%"}}}
+    }
+  });
+}
+function ensurePaidPageChart(){
+  if(typeof Chart==="undefined")return;
+  const el=document.getElementById("paidChart");
+  if(!el)return;
+  if(charts.paid){
+    try{charts.paid.destroy()}catch(e){}
+    charts.paid=null;
   }
+  const totalSpend=paidCampaigns.reduce((a,c)=>a+safeNum(c.spend),0);
+  const totalBudget=paidCampaigns.reduce((a,c)=>a+safeNum(c.budgetTarget),0);
+  const remaining=Math.max(0,totalBudget-totalSpend);
+  charts.paid=new Chart(el.getContext("2d"),{
+    type:"doughnut",
+    data:{
+      labels:["Đã chi","Còn lại"],
+      datasets:[{data:[totalSpend,remaining],borderWidth:0}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      cutout:"68%",
+      plugins:{
+        legend:{position:"bottom"},
+        tooltip:{callbacks:{label:(ctx)=>{
+          const v=safeNum(ctx.raw);
+          return `${ctx.label}: ${fmt(v,"₫")}`;
+        }}}
+      }
+    }
+  });
+}
+function renderPaidSummary(){
+  const body=document.getElementById("paidSummary");
+  if(!body)return;
+  const totalTarget=paidCampaigns.reduce((a,c)=>a+safeNum(c.targetLeads),0);
+  const totalActual=paidCampaigns.reduce((a,c)=>a+safeNum(c.actualLeads),0);
+  const achievement=totalTarget?totalActual/totalTarget*100:0;
+  const spend=paidCampaigns.reduce((a,c)=>a+safeNum(c.spend),0);
+  const revenue=paidCampaigns.reduce((a,c)=>a+safeNum(c.revenue),0);
+  const roas=spend?revenue/spend:0;
+  body.innerHTML=`
+    <tr><td><strong>Total Leads</strong></td><td>${fmt(totalTarget)}</td><td>${fmt(totalActual)}</td><td><span class="badge ${status(achievement)}">${Math.round(achievement)}%</span></td></tr>
+    <tr><td><strong>Total Spend</strong></td><td>—</td><td>${fmt(spend,"₫")}</td><td>${spend?"Đã ghi nhận":"Chưa có"}</td></tr>
+    <tr><td><strong>ROAS</strong></td><td>—</td><td>${roas?roas.toFixed(2)+"x":"—"}</td><td>${roas>=1.5?"Tốt":roas>0?"Theo dõi":"Chưa có dữ liệu"}</td></tr>
+  `;
 }
 function updateOverviewChart(){
  ensureOverviewCharts();
@@ -2723,7 +2795,7 @@ function updatePlannerReminder(){
 }
 window.addEventListener("scroll",updatePlannerReminder,{passive:true});
 window.addEventListener("resize",updatePlannerReminder);
-function navigate(page){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));const target=document.getElementById("page-"+page)||document.getElementById("page-overview");target.classList.add("active");if(page==="campaigns"){setCampaignPlanSelectors();renderCampaignPlan()}populateCampaignSelectors();document.querySelectorAll("#mainNav a").forEach(a=>a.classList.toggle("active",a.dataset.page===page));if(location.hash!=="#"+page)history.replaceState(null,"","#"+page);closeMobileNav();window.scrollTo({top:0,behavior:"smooth"})}
+function navigate(page){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));const target=document.getElementById("page-"+page)||document.getElementById("page-overview");target.classList.add("active");if(page==="campaigns"){setCampaignPlanSelectors();renderCampaignPlan()}if(page==="channels"){renderChannels();ensureChannelPageChart()}if(page==="paid"){renderPaidCampaigns();ensurePaidPageChart()}populateCampaignSelectors();document.querySelectorAll("#mainNav a").forEach(a=>a.classList.toggle("active",a.dataset.page===page));if(location.hash!=="#"+page)history.replaceState(null,"","#"+page);closeMobileNav();window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll("#mainNav a").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();navigate(a.dataset.page)}));
 window.addEventListener("hashchange",()=>navigate(location.hash.replace("#","")||"overview"));
 document.getElementById("kpiMonthPicker")?.addEventListener("change",async e=>{currentMonth=e.target.value;document.getElementById("month").value=currentMonth;await loadMonthData()});
@@ -2912,6 +2984,8 @@ function renderPaidCampaigns(){
  table.innerHTML=paidCampaigns.map((c,i)=>{const m=paidMetrics(c);return `<tr><td>${i+1}</td><td><strong>${escapeHtml(c.campaign||"—")}</strong></td><td><span class="badge blue">${escapeHtml(c.industry||"Chưa phân loại")}</span></td><td>${escapeHtml(c.platform)}</td><td>${escapeHtml(c.objective)}</td><td>${fmt(c.budgetTarget,"₫")}</td><td>${fmt(c.spend,"₫")}</td><td>${fmt(c.actualLeads)}</td><td>${m.cpl?fmt(m.cpl,"₫"):"—"}</td><td>${m.ctr.toFixed(2)}%</td><td>${m.roas?m.roas.toFixed(2)+"x":"—"}</td><td><span class="badge ${status(m.leadAch)}">${m.leadAch?Math.round(m.leadAch)+"%":"—"}</span></td><td><span class="badge ${c.status==="Completed"?"good":c.status==="Paused"?"warn":"blue"}">${escapeHtml(c.status)}</span></td><td><button class="small-action" onclick="editPaidCampaign(${i})">Edit</button> <button class="small-action" onclick="deletePaidCampaign(${i})">Delete</button></td></tr>`}).join("");
  const totalSpend=paidCampaigns.reduce((a,c)=>a+c.spend,0),totalLeads=paidCampaigns.reduce((a,c)=>a+c.actualLeads,0),totalRevenue=paidCampaigns.reduce((a,c)=>a+c.revenue,0),avgCpl=totalLeads?totalSpend/totalLeads:0;
  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set("paidTotalSpend",fmt(totalSpend,"₫"));set("paidTotalLeads",fmt(totalLeads));set("paidAvgCPL",avgCpl?fmt(avgCpl,"₫"):"—");set("paidTotalRevenue",fmt(totalRevenue,"₫"));set("paidCampaignCount",`${paidCampaigns.length} campaign${paidCampaigns.length===1?"":"s"}`);
+ renderPaidSummary();
+ ensurePaidPageChart();
  if(paidCampaigns.length)fillPaidForm(paidCampaigns[window.editingPaidIndex??0]);else updatePaidCalc();
 }
 function fillPaidForm(c){
