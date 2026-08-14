@@ -3,13 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Digital Performance Dashboard</title>
+<title>Digital Performance Dashboard v11.1 · Supabase</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 :root{
@@ -159,6 +157,7 @@ td strong{font-weight:700}
 @media(max-width:1100px){.paid-metric-grid{grid-template-columns:repeat(2,1fr)}}
 
 </style>
+<!-- Supabase schema: use digital_dashboard_supabase_setup.sql supplied with this dashboard. -->
 </head>
 <body>
 <div class="app">
@@ -185,7 +184,7 @@ td strong{font-weight:700}
           <div class="subtitle">Monthly performance · Plan vs Actual · August 2026</div>
         </div>
         <div class="filters">
-          <span id="firebaseStatus" class="badge warn" style="align-self:center" title="Nhấp để xem trạng thái Firebase" onclick="showFirebaseDiagnostics()" style="align-self:center;cursor:pointer">Firebase: connecting...</span>
+          <span id="databaseStatus" class="badge warn" style="align-self:center;cursor:pointer" title="Nhấp để kiểm tra trạng thái Supabase" onclick="showDatabaseDiagnostics()">Supabase: connecting...</span>
           <div class="agency-box"><span class="agency-label" title="Double-click để thêm Agency">Agency</span><select id="agencyPicker" class="agency-select"></select></div>
           <select id="month"><option value="2026-08">August 2026</option><option value="2026-07">July 2026</option><option value="2026-06">June 2026</option></select>
           <select id="channel"><option value="All Channels">All Channels</option><option value="Facebook">Facebook</option><option value="TikTok">TikTok</option><option value="Instagram">Instagram</option><option value="YouTube">YouTube</option><option value="Website">Website</option></select>
@@ -199,7 +198,7 @@ td strong{font-weight:700}
       </div>
       <div class="grid-2">
         <div class="card chart-card"><canvas id="trendChart"></canvas></div>
-        <div class="card chart-card"><canvas id="channelChart"></canvas><div id="overviewDataSource" style="font-size:10px;color:var(--muted);margin-top:8px">Data source: Firebase · Month + Channel</div></div>
+        <div class="card chart-card"><canvas id="channelChart"></canvas><div id="overviewDataSource" style="font-size:10px;color:var(--muted);margin-top:8px">Data source: Supabase · Month + Channel</div></div>
       </div>
       <div class="weekly-summary-grid" id="overviewWeeklySummary"></div>
       <div class="section-title"><h2>Insight & Action</h2><span>What happened → Why → Next action</span></div>
@@ -286,7 +285,7 @@ td strong{font-weight:700}
           <tbody id="contentTable"></tbody>
         </table>
       </div>
-      <div id="contentDataSource" style="font-size:10px;color:var(--muted);margin-top:8px">Data source: Firebase · ${currentChannel} · ${monthLabel(currentMonth)}</div>
+      <div id="contentDataSource" style="font-size:10px;color:var(--muted);margin-top:8px">Data source: Supabase · ${currentChannel} · ${monthLabel(currentMonth)}</div>
     </section>
 
     <!-- CHANNELS -->
@@ -494,7 +493,7 @@ function switchChannel(ch){
  paidCampaigns=Array.isArray(d.paid?.campaigns)?d.paid.campaigns.map(normalizeCampaign):(d.paid?.campaign?[normalizeCampaign(d.paid)]:[]);
  window.paidData=d.paid||{};window.reviewData=d.review||{};
  setGlobalChannelSelector();setChannelSelectors();renderKpis();renderKpiEditor();renderContent();renderPaidCampaigns();applyReviewData();renderChannels();updateOverviewChart();
- document.getElementById("kpiChannelTitle").textContent=`${ch} — ${monthLabel(currentMonth)}`;;const cds=document.getElementById("contentDataSource");if(cds)cds.textContent=`Data source: Firebase · ${ch} · ${monthLabel(currentMonth)}`
+ document.getElementById("kpiChannelTitle").textContent=`${ch} — ${monthLabel(currentMonth)}`;;const cds=document.getElementById("contentDataSource");if(cds)cds.textContent=`Data source: Supabase · ${ch} · ${monthLabel(currentMonth)}`
 }
 function renderKpis(){
  const el=document.getElementById("kpis");if(el)el.innerHTML=kpiData.map(k=>{const v=monthlyValues(k),p=achievement(k);return `<div class="card"><div class="kpi-title">${escapeHtml(k.name)}<span class="badge ${status(p)}">${Math.round(p)}%</span></div><div class="kpi-value">${fmt(v.actual,k.unit)}</div><div class="kpi-meta">Target: ${fmt(v.target,k.unit)} · <strong>${label(p)}</strong></div></div>`}).join("");
@@ -517,7 +516,7 @@ function renderKpiEditor(){
 }
 function updateWeeklyKpi(i,wi,type,value){
  if(isLocked(i,wi,type)){showToast("Số liệu đã khóa. Hãy Unlock / Edit bằng mật khẩu.");return}
- kpiData[i].weekly[wi][type]=safeNum(value);refreshKpiRow(i);renderKpis();setFirebaseStatus("unsaved","warn")
+ kpiData[i].weekly[wi][type]=safeNum(value);refreshKpiRow(i);renderKpis();setDatabaseStatus("unsaved","warn")
 }
 function refreshKpiRow(i){
  const tr=document.querySelector(`#kpiEditor tr[data-kpi="${i}"]`);if(!tr)return;
@@ -527,7 +526,7 @@ function refreshKpiRow(i){
  cells[7].innerHTML=`<strong>${Math.round(p)}%</strong>`;
  cells[8].innerHTML=`<span class="badge ${status(p)}">${label(p)}</span>`;
 }
-function addKpiRow(){kpiData.push({name:"New KPI",unit:"",invert:false,weekly:[{target:0,actual:0},{target:0,actual:0},{target:0,actual:0},{target:0,actual:0}]});renderKpiEditor();renderKpis();setFirebaseStatus("unsaved","warn")}
+function addKpiRow(){kpiData.push({name:"New KPI",unit:"",invert:false,weekly:[{target:0,actual:0},{target:0,actual:0},{target:0,actual:0},{target:0,actual:0}]});renderKpiEditor();renderKpis();setDatabaseStatus("unsaved","warn")}
 async function submitKpiTargets(){
  if(!confirm("Xác nhận chốt toàn bộ Target của tháng và kênh này? Sau khi chốt sẽ không thể sửa nếu không có mật khẩu."))return;
  const oldLocks=clone(kpiLocks);
@@ -556,16 +555,11 @@ async function sha256Text(text){
 async function unlockKpiEdit(){
  const password=prompt("Nhập mật khẩu quản trị để mở khóa KPI:");
  if(password===null)return;
- if(!db){showToast("Firebase chưa sẵn sàng");return}
+ if(!supabaseInitialized||!supabaseClient){showToast("Supabase chưa sẵn sàng");return}
  try{
-  const snap=await db.ref("digitalDashboard/settings/kpiEditPasswordHash").once("value");
-  const stored=snap.val();
-  if(!stored){showToast("Chưa có mật khẩu quản trị trong Firebase");return}
-  const hash=await sha256Text(password);
-  if(hash!==stored){showToast("Mật khẩu không đúng");return}
-
-  // Unlock BOTH Target and Actual for the currently selected Month + Channel.
-  // Re-render creates normal editable inputs again.
+  const {data,error}=await supabaseClient.rpc("verify_kpi_password",{p_password:password});
+  if(error)throw error;
+  if(data!==true){showToast("Mật khẩu không đúng");return}
   kpiLocks={
    targets:kpiData.map(()=>[false,false,false,false]),
    actuals:kpiData.map(()=>[false,false,false,false]),
@@ -573,11 +567,11 @@ async function unlockKpiEdit(){
    actualSubmitted:false
   };
   renderKpiEditor();
-  setFirebaseStatus("unsaved","warn");
+  setDatabaseStatus("unsaved","warn");
   showToast("Đã mở khóa. Bây giờ bạn có thể GÕ LẠI Target/Actual. Nhớ Submit lại để khóa.");
  }catch(e){
   console.error("Unlock error:",e);
-  showToast("Không kiểm tra được mật khẩu Firebase: "+(e?.code||e?.message||"unknown error"));
+  showToast("Không kiểm tra được mật khẩu Supabase: "+(e?.message||e?.code||"unknown error"));
  }
 }
 function saveKpis(){saveAllData(true)}
@@ -607,11 +601,10 @@ function calcContentMetrics(){
 async function saveNewContent(){
  const name=document.getElementById("newContentName")?.value.trim();
  if(!name){showToast("Vui lòng nhập Content Name");return}
-
  const targetChannel=document.getElementById("newContentChannel")?.value||currentChannel;
- if(!firebaseInitialized||!db){showToast("Firebase chưa sẵn sàng");return}
-
+ if(!supabaseInitialized||!supabaseClient){showToast("Supabase chưa sẵn sàng");return}
  ensureChannelData();
+
  const targetList=normalizeContents(channelData[targetChannel]?.contents||[]);
  const reach=safeNum(document.getElementById("newContentReach")?.value);
  const eng=safeNum(document.getElementById("newContentEngagement")?.value);
@@ -619,7 +612,6 @@ async function saveNewContent(){
  const leads=safeNum(document.getElementById("newContentLeads")?.value);
  const spend=safeNum(document.getElementById("newContentSpend")?.value);
  const ctr=safeNum(document.getElementById("newContentCTR")?.value);
-
  const editing=window.editingContentIndex!=null && targetChannel===currentChannel;
  const old=editing?contents[window.editingContentIndex]:null;
  const item={
@@ -629,54 +621,30 @@ async function saveNewContent(){
   pillar:document.getElementById("newContentPillar")?.value||"Brand",
   channel:targetChannel,
   date:document.getElementById("newContentDate")?.value||"",
-  reach,
-  engagement:eng,
-  er:reach?eng/reach*100:0,
-  views,
-  leads,
-  spend,
-  cpl:leads?spend/leads:0,
-  ctr,
+  reach,engagement:eng,er:reach?eng/reach*100:0,views,leads,spend,
+  cpl:leads?spend/leads:0,ctr,
   note:document.getElementById("newContentNote")?.value.trim()||""
  };
-
- if(editing) targetList[window.editingContentIndex]=item;
- else targetList.push(item);
+ if(editing)targetList[window.editingContentIndex]=item;else targetList.push(item);
 
  try{
-  // Read current channel once before writing, so an old tab cannot accidentally
-  // erase Content/KPI data that was added after the page loaded.
-  const ref=db.ref(`digitalDashboard/months/${monthKey(currentMonth)}/channels/${targetChannel}`);
-  const snap=await ref.once("value");
-  const existing=snap.val()||{};
-  const mergedContents=normalizeContents(existing.contents||targetList);
-  if(editing){
-   const idx=mergedContents.findIndex(x=>x.id===item.id);
-   if(idx>=0)mergedContents[idx]=item;else mergedContents.push(item);
-  }else{
-   mergedContents.push(item);
-  }
-
-  await ref.update({
-   contents:mergedContents,
-   updatedAt:firebase.database.ServerValue.TIMESTAMP
-  });
-
-  channelData[targetChannel]=channelData[targetChannel]||{};
-  channelData[targetChannel].contents=clone(mergedContents);
-  if(targetChannel===currentChannel)contents=clone(mergedContents);
-
-  renderContent();
-  renderChannels();
-  resetContentForm();
-  window.editingContentIndex=null;
-  setFirebaseStatus("saved","good");
+  const row=channelData[targetChannel]||{
+   kpis:clone(DEFAULT_KPIS),locks:normalizeLocks({},DEFAULT_KPIS.length),
+   contents:[],paid:{campaigns:[]},review:{}
+  };
+  row.contents=targetList;
+  const ok=await upsertChannelData(targetChannel,row);
+  if(!ok)return;
+  channelData[targetChannel]=clone(row);
+  if(targetChannel===currentChannel)contents=clone(targetList);
+  renderContent();renderChannels();resetContentForm();window.editingContentIndex=null;
+  setDatabaseStatus("saved","good");
   showToast(`Đã lưu Content vào ${targetChannel}`);
-  setTimeout(()=>setFirebaseStatus("connected","good"),1800);
+  setTimeout(()=>setDatabaseStatus("connected","good"),1800);
  }catch(err){
-  console.error("Firebase Content write error:",err);
-  setFirebaseStatus("write error","bad");
-  showToast("Firebase CONTENT WRITE: "+firebaseErrorMessage(err));
+  console.error("Supabase Content write error:",err);
+  setDatabaseStatus("write error","bad");
+  showToast("Supabase CONTENT WRITE: "+databaseErrorMessage(err));
  }
 }
 function editContent(i){
@@ -686,27 +654,26 @@ function editContent(i){
 }
 async function deleteContent(i){
  if(!confirm("Xóa content này?"))return;
- if(!firebaseInitialized||!db){showToast("Firebase chưa sẵn sàng");return}
- const item=contents[i];
+ if(!supabaseInitialized||!supabaseClient){showToast("Supabase chưa sẵn sàng");return}
  try{
-  const ref=db.ref(`digitalDashboard/months/${monthKey(currentMonth)}/channels/${currentChannel}`);
-  const snap=await ref.once("value");
-  const existing=snap.val()||{};
-  const list=normalizeContents(existing.contents||[]).filter(c=>c.id!==item.id);
-  await ref.update({contents:list,updatedAt:firebase.database.ServerValue.TIMESTAMP});
+  const item=contents[i];
+  const row=channelData[currentChannel]||{};
+  const list=normalizeContents(row.contents||[]).filter(c=>c.id!==item.id);
+  row.contents=list;
+  const ok=await upsertChannelData(currentChannel,row);
+  if(!ok)return;
   contents=list;
-  channelData[currentChannel].contents=clone(list);
-  renderContent();
-  setFirebaseStatus("saved","good");
+  channelData[currentChannel]=clone(row);
+  renderContent();renderChannels();
+  setDatabaseStatus("saved","good");
   showToast("Đã xóa Content");
-  setTimeout(()=>setFirebaseStatus("connected","good"),1800);
+  setTimeout(()=>setDatabaseStatus("connected","good"),1800);
  }catch(err){
-  console.error("Firebase Content delete error:",err);
-  setFirebaseStatus("write error","bad");
-  showToast("Firebase CONTENT DELETE: "+firebaseErrorMessage(err));
+  console.error("Supabase Content delete error:",err);
+  setDatabaseStatus("write error","bad");
+  showToast("Supabase CONTENT DELETE: "+databaseErrorMessage(err));
  }
 }
-
 function makeCharts(){
  if(typeof Chart==="undefined")return;
  const trend=document.getElementById("trendChart");if(trend)charts.trend=new Chart(trend,{type:"line",data:{labels:["W1","W2","W3","W4"],datasets:[{label:"Target",data:[0,0,0,0],borderDash:[6,6],tension:.35},{label:"Actual",data:[0,0,0,0],tension:.35}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{y:{beginAtZero:true}}}});
@@ -740,7 +707,20 @@ function setAgencySelectors(){
 }
 async function changeAgency(v){
  currentAgency=v;setAgencySelectors();
- if(firebaseInitialized){try{await db.ref("digitalDashboard/settings/agency").set(currentAgency);setFirebaseStatus("saved","good");setTimeout(()=>setFirebaseStatus("connected","good"),1200)}catch(e){console.error(e)}}
+ if(supabaseInitialized&&supabaseClient){
+  try{
+   const {error}=await supabaseClient.from("digital_dashboard_settings").upsert({
+    key:"agency",value:currentAgency,updated_at:new Date().toISOString()
+   });
+   if(error)throw error;
+   await loadMonthData();
+   setDatabaseStatus("saved","good");
+   setTimeout(()=>setDatabaseStatus("connected","good"),1200);
+  }catch(e){
+   console.error("Supabase agency write error:",e);
+   showToast("Không lưu được Agency: "+databaseErrorMessage(e));
+  }
+ }
 }
 async function addAgency(){
  const name=prompt("Tên Agency mới:");if(!name)return;
@@ -762,109 +742,143 @@ renderKpis();renderKpiEditor();renderContent();renderPaidCampaigns();makeCharts(
 <div id="toast" class="toast"></div>
 
 <script>
-const firebaseConfig={
- apiKey:"AIzaSyBIvTVKIjkZ6JA07viTxcvYPbndWLbD-wg",
- authDomain:"vpscontent.firebaseapp.com",
- databaseURL:"https://vpscontent-default-rtdb.asia-southeast1.firebasedatabase.app",
- projectId:"vpscontent",
- storageBucket:"vpscontent.firebasestorage.app",
- messagingSenderId:"173687421511",
- appId:"1:173687421511:web:84fda92e43de9b1fc04f62"
-};
-let db=null,firebaseInitialized=false;
-function monthRef(){return db.ref("digitalDashboard/months/"+monthKey(currentMonth))}
-function setFirebaseStatus(text,cls){const e=document.getElementById("firebaseStatus");if(e){e.textContent="Firebase: "+text;e.className="badge "+cls}}
+const SUPABASE_URL="https://wsfbjlmsjezvkfmefvjh.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_-_Udo3FhfogJlXSrLeSfiw_A453XMUA";
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+let supabaseInitialized=false;
+
+function setDatabaseStatus(text,cls){
+ const e=document.getElementById("databaseStatus");
+ if(e){e.textContent="Supabase: "+text;e.className="badge "+cls}
+}
+async function testSupabaseConnection(){
+ try{
+  const {error}=await supabaseClient.from("digital_dashboard_data").select("id").limit(1);
+  if(error)throw error;
+  setDatabaseStatus("connected","good");
+  return true;
+ }catch(err){
+  setDatabaseStatus("error","bad");
+  console.error("Supabase connection test:",err);
+  return false;
+ }
+}
+function databaseErrorMessage(err){
+ const code=err?.code||err?.status||"unknown";
+ const msg=err?.message||err?.details||"Không xác định";
+ if(code==="42501"||/row-level security|permission denied/i.test(msg))
+  return "RLS/permission denied — Supabase đang chặn thao tác này.";
+ if(code==="PGRST116")return "Không tìm thấy bản ghi.";
+ if(code==="23505")return "Dữ liệu bị trùng khóa.";
+ if(/Failed to fetch|NetworkError|fetch/i.test(msg))return "Không kết nối được Supabase.";
+ return `${code} — ${msg}`;
+}
 function kpiDataCount(rawKpis){
  if(!rawKpis)return 0;
  return Array.isArray(rawKpis)?rawKpis.length:Object.keys(rawKpis).length;
 }
-function hydrateChannelData(raw){
+function hydrateChannelData(rows){
  channelData={};
- if(raw && typeof raw==="object"){
-  Object.keys(raw).forEach(ch=>{
-   channelData[ch]={kpis:(raw[ch].kpis?Object.values(raw[ch].kpis):[]).map(normalizeKpi),locks:normalizeLocks(raw[ch].locks,kpiDataCount(raw[ch].kpis)),contents:normalizeContents(raw[ch].contents||[]),paid:raw[ch].paid||{},review:raw[ch].review||{}}
-  });
- }
+ (rows||[]).forEach(row=>{
+  const raw=row.payload||{};
+  channelData[row.channel]={
+   kpis:(raw.kpis?Object.values(raw.kpis):[]).map(normalizeKpi),
+   locks:normalizeLocks(raw.locks,kpiDataCount(raw.kpis)),
+   contents:normalizeContents(raw.contents||[]),
+   paid:raw.paid||{},
+   review:raw.review||{}
+  };
+ });
  const savedChannels=Object.keys(channelData);
  channels=[...new Set([...DEFAULT_CHANNELS,...savedChannels])];
  ensureChannelData();
 }
-async function showFirebaseDiagnostics(){
- if(!db){showToast("Firebase chưa được khởi tạo");return}
+async function upsertChannelData(channel,row){
+ if(!supabaseInitialized||!supabaseClient){showToast("Supabase chưa sẵn sàng");return false}
  try{
-  const path=`digitalDashboard/months/${monthKey(currentMonth)}/channels/${currentChannel}`;
-  const snap=await db.ref(path).once("value");
-  showToast(`Firebase OK · READ · ${path}`);
+  const payload={
+   kpis:clone(row.kpis||[]),
+   locks:clone(row.locks||{}),
+   contents:clone(row.contents||[]),
+   paid:clone(row.paid||{}),
+   review:clone(row.review||{}),
+   updatedAt:new Date().toISOString()
+  };
+  const {error}=await supabaseClient.from("digital_dashboard_data").upsert({
+   agency:currentAgency,
+   month_key:monthKey(currentMonth),
+   channel,
+   payload
+  },{onConflict:"agency,month_key,channel"});
+  if(error)throw error;
+  return true;
  }catch(err){
-  showToast("Firebase READ: "+firebaseErrorMessage(err));
+  console.error("Supabase upsert error:",err);
+  setDatabaseStatus("write error","bad");
+  showToast("Supabase WRITE: "+databaseErrorMessage(err));
+  return false;
  }
 }
-async function initFirebase(){
+async function showDatabaseDiagnostics(){
+ if(!supabaseInitialized||!supabaseClient){showToast("Supabase chưa được khởi tạo");return}
  try{
-  if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
-  db=firebase.database();
-
-  // Try Anonymous Auth first. If Anonymous Auth is disabled but RTDB rules allow
-  // public access, continue with direct RTDB access instead of failing completely.
-  let authOk=false;
-  try{
-   if(firebase.auth){
-    await firebase.auth().signInAnonymously();
-    authOk=true;
-   }
-  }catch(authErr){
-   console.warn("Anonymous Auth unavailable:",authErr);
-  }
-
-  // Read/write settings only after auth attempt. This works with either:
-  // 1) authenticated RTDB rules, or 2) public RTDB rules.
-  const passwordRef=db.ref("digitalDashboard/settings/kpiEditPasswordHash");
-  const passwordSnap=await passwordRef.once("value");
-  if(!passwordSnap.exists()){
-   await passwordRef.set("7bdaa2112c080f90a0679209785cbb4767d4f83477aacc598b4f3aca81102a61");
-  }
-
-  const agencyRef=db.ref("digitalDashboard/settings/agency");
-  const agencySnap=await agencyRef.once("value");
-  if(agencySnap.exists() && agencySnap.val()){
-   currentAgency=agencySnap.val();
+  const {data,error}=await supabaseClient.from("digital_dashboard_data")
+   .select("channel,updated_at")
+   .eq("agency",currentAgency)
+   .eq("month_key",monthKey(currentMonth))
+   .eq("channel",currentChannel)
+   .maybeSingle();
+  if(error)throw error;
+  showToast(`Supabase OK · READ · ${currentAgency} / ${monthLabel(currentMonth)} / ${currentChannel}${data?" · có dữ liệu":" · chưa có dữ liệu"}`);
+ }catch(err){showToast("Supabase READ: "+databaseErrorMessage(err))}
+}
+async function initSupabase(){
+ try{
+  if(!window.supabase||!window.supabase.createClient)throw new Error("Supabase JS CDN chưa tải.");
+  // Test the table before marking the app connected.
+  const {error}=await supabaseClient.from("digital_dashboard_data").select("id").limit(1);
+  if(error)throw error;
+  const {data:settings,error:settingsError}=await supabaseClient.from("digital_dashboard_settings").select("key,value");
+  if(settingsError)throw settingsError;
+  const agencySetting=(settings||[]).find(x=>x.key==="agency");
+  if(agencySetting?.value){
+   currentAgency=typeof agencySetting.value==="string"?agencySetting.value:(agencySetting.value.name||currentAgency);
    if(!agencies.includes(currentAgency))agencies.push(currentAgency);
   }else{
    currentAgency=currentAgency||agencies[0];
-   await agencyRef.set(currentAgency);
+   await supabaseClient.from("digital_dashboard_settings").upsert({
+    key:"agency",value:currentAgency,updated_at:new Date().toISOString()
+   });
   }
   setAgencySelectors();
-
-  firebaseInitialized=true;
-  setFirebaseStatus(authOk?"connected":"connected · public rules","good");
+  supabaseInitialized=true;
+  setDatabaseStatus("connected","good");
   await loadMonthData();
  }catch(err){
-  console.error("Firebase initialization error:",err);
-  firebaseInitialized=false;
-  const code=err?.code||"unknown";
-  const msg=err?.message||"Unknown Firebase error";
-  setFirebaseStatus("error","bad");
-  showToast("Firebase lỗi: "+code+". "+msg);
+  console.error("Supabase initialization error:",err);
+  supabaseInitialized=false;
+  setDatabaseStatus("error","bad");
+  showToast("Supabase lỗi: "+databaseErrorMessage(err));
  }
 }
 async function loadMonthData(){
- if(!firebaseInitialized)return;
+ if(!supabaseInitialized)return;
  try{
-  const snap=await monthRef().once("value"),data=snap.val();
-  if(data && data.channels){
-   hydrateChannelData(data.channels);
-  }else if(data && data.kpis){
-   // Migrate v4 month-level data into the currently selected channel.
-   channels=[...new Set([...DEFAULT_CHANNELS,"Facebook"])];
-   ensureChannelData();
-   channelData["Facebook"]={kpis:Object.values(data.kpis).map(normalizeKpi),locks:normalizeLocks(data.locks,Object.values(data.kpis).length),contents:normalizeContents(data.contents||[]),paid:data.paid||{},review:data.review||{}};
-  }else{
-   channels=[...DEFAULT_CHANNELS];channelData={};ensureChannelData();
-  }
+  const {data,error}=await supabaseClient.from("digital_dashboard_data")
+   .select("id,agency,month_key,channel,payload,updated_at")
+   .eq("agency",currentAgency)
+   .eq("month_key",monthKey(currentMonth));
+  if(error)throw error;
+  hydrateChannelData(data||[]);
   if(!channels.includes(currentChannel))currentChannel=channels[0];
+  setGlobalChannelSelector();setChannelSelectors();
   switchChannel(currentChannel);
-  setFirebaseStatus("connected","good");
-  }catch(err){console.error("Firebase read error:",err);setFirebaseStatus("read error","bad");showToast("Không đọc được dữ liệu Firebase: "+(err?.code||err?.message||"unknown error"))}
+  setDatabaseStatus("connected","good");
+ }catch(err){
+  console.error("Supabase read error:",err);
+  setDatabaseStatus("read error","bad");
+  showToast("Không đọc được dữ liệu Supabase: "+databaseErrorMessage(err));
+ }
 }
 function normalizeCampaign(c){
  return {id:c.id||Date.now().toString(),campaign:c.campaign||"",platform:c.platform||"Meta",objective:c.objective||"Conversion",status:c.status||"Planned",
@@ -898,23 +912,16 @@ function updatePaidCalc(){
  set("paidCalcCTR",m.ctr.toFixed(2)+"%");set("paidCalcCPC",m.cpc?fmt(m.cpc,"₫"):"—");set("paidCalcCPM",m.cpm?fmt(m.cpm,"₫"):"—");set("paidCalcCPL",m.cpl?fmt(m.cpl,"₫"):"—");set("paidCalcCVR",m.cvr.toFixed(2)+"%");set("paidCalcROAS",m.roas?m.roas.toFixed(2)+"x":"—");set("paidCalcLeadAch",m.leadAch?Math.round(m.leadAch)+"%":"0%");set("paidCalcBudgetUsage",m.budgetUsage.toFixed(1)+"%");
  if(charts.paid){charts.paid.data.datasets[0].data=[c.spend,Math.max(0,c.budgetTarget-c.spend)];charts.paid.update()}
 }
-function savePaidCampaign(){
+async function savePaidCampaign(){
  const c=getPaidCampaignForm();if(!c.campaign.trim()){showToast("Vui lòng nhập tên Campaign");return}
  if(window.editingPaidIndex!=null)paidCampaigns[window.editingPaidIndex]=c;else paidCampaigns.push(c);
- window.editingPaidIndex=null;renderPaidCampaigns();saveAllData(true);showToast("Đã lưu Campaign");
+ window.editingPaidIndex=null;renderPaidCampaigns();await saveAllData(true);showToast("Đã lưu Campaign");
 }
 function editPaidCampaign(i){window.editingPaidIndex=i;fillPaidForm(paidCampaigns[i])}
-function deletePaidCampaign(i){if(confirm("Xóa Campaign này?")){paidCampaigns.splice(i,1);window.editingPaidIndex=null;renderPaidCampaigns();saveAllData(true)}}
+async function deletePaidCampaign(i){if(confirm("Xóa Campaign này?")){paidCampaigns.splice(i,1);window.editingPaidIndex=null;renderPaidCampaigns();await saveAllData(true)}}
 function resetPaidForm(){window.editingPaidIndex=null;["paidCampaign","paidBudgetTarget","paidSpend","paidTargetLeads","paidActualLeads","paidImpressions","paidReach","paidClicks","paidConversions","paidRevenue","paidTargetCPL","paidNote"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});document.getElementById("paidPlatform").value="Meta";document.getElementById("paidObjective").value="Conversion";document.getElementById("paidCampaignStatus").value="Planned";updatePaidCalc()}
-function firebaseErrorMessage(err){
- const code=err?.code||"unknown";
- if(code==="PERMISSION_DENIED"||code==="permission_denied") return "PERMISSION_DENIED — Firebase Rules đang chặn ghi dữ liệu.";
- if(code==="NETWORK_ERROR") return "NETWORK_ERROR — không kết nối được Firebase.";
- if(code==="INVALID_ARGUMENT") return "INVALID_ARGUMENT — dữ liệu gửi lên Firebase không hợp lệ.";
- return `${code} — ${err?.message||"Không xác định"}`;
-}
 async function saveAllData(showMessage=true){
- if(!firebaseInitialized||!db){showToast("Firebase chưa sẵn sàng");return false}
+ if(!supabaseInitialized||!supabaseClient){showToast("Supabase chưa sẵn sàng");return false}
  try{
   ensureChannelData();
   const payload={
@@ -923,37 +930,36 @@ async function saveAllData(showMessage=true){
    contents:clone(contents),
    paid:getPaidData(),
    review:clone(window.reviewData||{}),
-   updatedAt:firebase.database.ServerValue.TIMESTAMP
+   updatedAt:new Date().toISOString()
   };
-
-  // IMPORTANT: write only the currently selected channel.
-  // This prevents one channel's save from rewriting the whole month and
-  // makes the Firebase data model truly Month → Channel.
-  const ref=db.ref(`digitalDashboard/months/${monthKey(currentMonth)}/channels/${currentChannel}`);
-  await ref.set(payload);
-
-  // Keep local state in sync after a successful write.
+  const {error}=await supabaseClient.from("digital_dashboard_data").upsert({
+   agency:currentAgency,
+   month_key:monthKey(currentMonth),
+   channel:currentChannel,
+   payload
+  },{onConflict:"agency,month_key,channel"});
+  if(error)throw error;
   channelData[currentChannel]=clone(payload);
-  setFirebaseStatus("saved","good");
+  setDatabaseStatus("saved","good");
   if(showMessage)showToast(`Đã lưu ${currentChannel} — ${monthLabel(currentMonth)}`);
-  setTimeout(()=>setFirebaseStatus("connected","good"),1800);
+  setTimeout(()=>setDatabaseStatus("connected","good"),1800);
   return true;
  }catch(err){
-  console.error("Firebase write error:",err);
-  const detail=firebaseErrorMessage(err);
-  setFirebaseStatus("write error","bad");
-  showToast("Firebase WRITE: "+detail);
+  console.error("Supabase write error:",err);
+  const detail=databaseErrorMessage(err);
+  setDatabaseStatus("write error","bad");
+  showToast("Supabase WRITE: "+detail);
   return false;
+ }
 }
-}
-
 document.getElementById("month")?.addEventListener("change",async e=>{currentMonth=e.target.value;await loadMonthData()});
 ["newContentReach","newContentEngagement","newContentLeads","newContentSpend"].forEach(id=>{
  const el=document.getElementById(id);
  if(el)el.addEventListener("input",calcContentMetrics);
 });
-initFirebase();
+initSupabase();
 </script>
+
 
 
 <script>
