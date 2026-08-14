@@ -172,7 +172,7 @@ td strong{font-weight:700}
       <a href="#paid" data-page="paid">Paid Media</a>
       <a href="#review" data-page="review">Nghiệm thu tháng</a>
     </nav>
-    <div class="sidebar-bottom">Digital Performance<br>Management System · v9.0</div>
+    <div class="sidebar-bottom">Digital Performance<br>Management System · v10.0</div>
   </aside>
 
   <main class="main">
@@ -605,18 +605,79 @@ function calcContentMetrics(){
  document.getElementById("newContentCPL").value=leads?fmt(spend/leads,"₫"):"";
 }
 async function saveNewContent(){
- const name=document.getElementById("newContentName").value.trim();if(!name){showToast("Vui lòng nhập tên Content");return}
- const targetChannel=document.getElementById("newContentChannel").value||currentChannel;
+ const name=document.getElementById("newContentName")?.value.trim();
+ if(!name){showToast("Vui lòng nhập Content Name");return}
+
+ const targetChannel=document.getElementById("newContentChannel")?.value||currentChannel;
+ if(!firebaseInitialized||!db){showToast("Firebase chưa sẵn sàng");return}
+
  ensureChannelData();
  const targetList=normalizeContents(channelData[targetChannel]?.contents||[]);
- const reach=safeNum(document.getElementById("newContentReach").value),eng=safeNum(document.getElementById("newContentEngagement").value),views=safeNum(document.getElementById("newContentViews").value),leads=safeNum(document.getElementById("newContentLeads").value),spend=safeNum(document.getElementById("newContentSpend").value);
+ const reach=safeNum(document.getElementById("newContentReach")?.value);
+ const eng=safeNum(document.getElementById("newContentEngagement")?.value);
+ const views=safeNum(document.getElementById("newContentViews")?.value);
+ const leads=safeNum(document.getElementById("newContentLeads")?.value);
+ const spend=safeNum(document.getElementById("newContentSpend")?.value);
+ const ctr=safeNum(document.getElementById("newContentCTR")?.value);
+
  const editing=window.editingContentIndex!=null && targetChannel===currentChannel;
- const item={id:editing?contents[window.editingContentIndex].id:Date.now().toString(),name,audience:document.getElementById("newContentAudience").value.trim(),pillar:document.getElementById("newContentPillar").value,channel:targetChannel,date:document.getElementById("newContentDate").value,reach,engagement:eng,er:reach?eng/reach*100:0,views,leads,spend,cpl:leads?spend/leads:0,ctr:safeNum(document.getElementById("newContentCTR").value),note:document.getElementById("newContentNote").value.trim()};
- if(editing)targetList[window.editingContentIndex]=item;else targetList.push(item);
- channelData[targetChannel].contents=targetList;
- if(targetChannel===currentChannel)contents=targetList;
- const ok=await saveAllData(true);
- if(ok){renderContent();resetContentForm();renderChannels();showToast(`Đã lưu Content vào ${targetChannel}`)}
+ const old=editing?contents[window.editingContentIndex]:null;
+ const item={
+  id:old?.id||Date.now().toString(),
+  name,
+  audience:document.getElementById("newContentAudience")?.value.trim()||"",
+  pillar:document.getElementById("newContentPillar")?.value||"Brand",
+  channel:targetChannel,
+  date:document.getElementById("newContentDate")?.value||"",
+  reach,
+  engagement:eng,
+  er:reach?eng/reach*100:0,
+  views,
+  leads,
+  spend,
+  cpl:leads?spend/leads:0,
+  ctr,
+  note:document.getElementById("newContentNote")?.value.trim()||""
+ };
+
+ if(editing) targetList[window.editingContentIndex]=item;
+ else targetList.push(item);
+
+ try{
+  // Read current channel once before writing, so an old tab cannot accidentally
+  // erase Content/KPI data that was added after the page loaded.
+  const ref=db.ref(`digitalDashboard/months/${monthKey(currentMonth)}/channels/${targetChannel}`);
+  const snap=await ref.once("value");
+  const existing=snap.val()||{};
+  const mergedContents=normalizeContents(existing.contents||targetList);
+  if(editing){
+   const idx=mergedContents.findIndex(x=>x.id===item.id);
+   if(idx>=0)mergedContents[idx]=item;else mergedContents.push(item);
+  }else{
+   mergedContents.push(item);
+  }
+
+  await ref.update({
+   contents:mergedContents,
+   updatedAt:firebase.database.ServerValue.TIMESTAMP
+  });
+
+  channelData[targetChannel]=channelData[targetChannel]||{};
+  channelData[targetChannel].contents=clone(mergedContents);
+  if(targetChannel===currentChannel)contents=clone(mergedContents);
+
+  renderContent();
+  renderChannels();
+  resetContentForm();
+  window.editingContentIndex=null;
+  setFirebaseStatus("saved","good");
+  showToast(`Đã lưu Content vào ${targetChannel}`);
+  setTimeout(()=>setFirebaseStatus("connected","good"),1800);
+ }catch(err){
+  console.error("Firebase Content write error:",err);
+  setFirebaseStatus("write error","bad");
+  showToast("Firebase CONTENT WRITE: "+firebaseErrorMessage(err));
+ }
 }
 function editContent(i){
  const c=contents[i];window.editingContentIndex=i;document.getElementById("contentForm").classList.add("open");
@@ -625,9 +686,25 @@ function editContent(i){
 }
 async function deleteContent(i){
  if(!confirm("Xóa content này?"))return;
- contents.splice(i,1);
- channelData[currentChannel].contents=clone(contents);
- renderContent();await saveAllData(true);
+ if(!firebaseInitialized||!db){showToast("Firebase chưa sẵn sàng");return}
+ const item=contents[i];
+ try{
+  const ref=db.ref(`digitalDashboard/months/${monthKey(currentMonth)}/channels/${currentChannel}`);
+  const snap=await ref.once("value");
+  const existing=snap.val()||{};
+  const list=normalizeContents(existing.contents||[]).filter(c=>c.id!==item.id);
+  await ref.update({contents:list,updatedAt:firebase.database.ServerValue.TIMESTAMP});
+  contents=list;
+  channelData[currentChannel].contents=clone(list);
+  renderContent();
+  setFirebaseStatus("saved","good");
+  showToast("Đã xóa Content");
+  setTimeout(()=>setFirebaseStatus("connected","good"),1800);
+ }catch(err){
+  console.error("Firebase Content delete error:",err);
+  setFirebaseStatus("write error","bad");
+  showToast("Firebase CONTENT DELETE: "+firebaseErrorMessage(err));
+ }
 }
 
 function makeCharts(){
@@ -871,6 +948,10 @@ async function saveAllData(showMessage=true){
 }
 
 document.getElementById("month")?.addEventListener("change",async e=>{currentMonth=e.target.value;await loadMonthData()});
+["newContentReach","newContentEngagement","newContentLeads","newContentSpend"].forEach(id=>{
+ const el=document.getElementById(id);
+ if(el)el.addEventListener("input",calcContentMetrics);
+});
 initFirebase();
 </script>
 
