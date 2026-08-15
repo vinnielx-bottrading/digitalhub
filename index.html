@@ -145,7 +145,7 @@ td strong{font-weight:700}
 .paid-metric span{display:block;color:var(--muted);font-size:10px;margin-bottom:5px}.paid-metric strong{font-size:18px}
 @media(max-width:1100px){.paid-metric-grid{grid-template-columns:repeat(2,1fr)}}
 .industry-planner{margin-top:12px}
-.industry-toolbar{display:grid;grid-template-columns:1.4fr .9fr auto auto auto;gap:10px;align-items:end}
+.industry-toolbar{display:grid;grid-template-columns:1.4fr .9fr auto auto;gap:10px;align-items:end}
 .industry-total{display:flex;gap:18px;align-items:center;flex-wrap:wrap;padding:10px 12px;background:#f8f9fb;border:1px solid var(--line);border-radius:9px;margin:12px 0;font-size:12px}
 .industry-total strong{font-size:16px}
 .industry-table{width:100%;border-collapse:collapse;min-width:760px}
@@ -1340,7 +1340,7 @@ html[data-am-theme="dark"] .primary{
     <section class="page" id="page-kpi">
       <div class="page-head">
         <div><h2>KPI Management</h2><p>Quản lý KPI theo từng tháng, từng kênh và từng tuần. Dữ liệu tháng cũ được giữ nguyên để đối chiếu.</p></div>
-        <div class="action-row"><button onclick="addKpiRow()">+ Add KPI</button><button onclick="submitKpiTargets()">Submit Target</button><button onclick="submitKpiActuals()">Submit Actual</button><button onclick="unlockKpiEdit()">Unlock / Edit</button><button class="primary" onclick="saveKpis()">Save KPI Plan</button></div>
+        <div class="action-row"><button onclick="addKpiRow()">+ Add KPI</button><button onclick="submitKpiTargets()">Submit Target</button><button onclick="submitKpiActuals()">Submit Actual</button><button onclick="unlockKpiEdit()">Unlock / Edit</button><button class="primary" onclick="saveKpiManagementPage()">💾 Save (KPI + Phân bổ ngành hàng)</button></div>
       </div>
       <div class="card">
         <div class="channel-filter-bar">
@@ -1366,8 +1366,8 @@ html[data-am-theme="dark"] .primary{
           <div class="field"><label>Cách phân bổ</label><select id="industryAllocationMode" onchange="setIndustryAllocationMode(this.value)"><option value="equal">Chia đều</option><option value="custom">Tùy biến</option></select></div>
           <button onclick="addIndustry()">+ Add Industry</button>
           <button onclick="equalIndustryWeights()">Chia đều 100%</button>
-          <button class="primary" onclick="saveIndustryAllocation()">Save Allocation</button>
         </div>
+        <div class="history-note" style="margin-top:10px">Phân bổ ngành hàng được lưu chung với nút <strong>Save</strong> ở đầu trang — không còn nút Save riêng cho mục này.</div>
         <div class="industry-total" id="industryAllocationSummary"></div>
         <div class="weekly-wrap">
           <table class="industry-table">
@@ -1389,6 +1389,30 @@ html[data-am-theme="dark"] .primary{
               <th>MONTH TARGET</th><th>MONTH ACTUAL</th><th>ACHIEVEMENT</th><th>STATUS</th><th></th>
             </tr></thead>
             <tbody id="kpiEditor"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" id="kpiEvidenceCard">
+        <div class="section-title" style="margin-top:0">
+          <div><h2>Tư liệu / Bằng chứng số liệu</h2><span>Upload báo cáo agency (Meta, Google, TikTok...) làm bằng chứng cho Actual đã Submit</span></div>
+          <span id="kpiEvidenceCount"></span>
+        </div>
+        <div class="history-note" id="kpiEvidenceReminder" style="display:none;background:var(--warning-soft);border:1px solid var(--warning)">
+          ⚠️ Actual tháng này đã <strong>Submit</strong> nhưng chưa có tư liệu đính kèm từ agency. Vui lòng upload báo cáo (screenshot / export từ Meta, Google, TikTok...) để lưu bằng chứng số liệu trước khi đóng tháng.
+        </div>
+        <div class="channel-filter-bar">
+          <div class="field"><label>Nền tảng</label>
+            <select id="kpiEvidencePlatform">
+              <option>Meta</option><option>Google</option><option>TikTok</option><option>Khác</option>
+            </select>
+          </div>
+          <div class="field"><label>Tệp tư liệu</label><input type="file" id="kpiEvidenceFile" accept="image/*,.pdf,.xlsx,.xls,.csv"></div>
+          <button class="primary" onclick="uploadKpiEvidence()">⬆ Upload tư liệu</button>
+        </div>
+        <div class="weekly-wrap">
+          <table class="industry-table">
+            <thead><tr><th>Tệp</th><th>Nền tảng</th><th>Dung lượng</th><th>Thời gian upload</th><th></th></tr></thead>
+            <tbody id="kpiEvidenceTable"></tbody>
           </table>
         </div>
       </div>
@@ -1652,6 +1676,7 @@ let paidCampaigns=[];
 window.editingPaidIndex=null;
 let charts={};
 let kpiLocks={targets:[],actuals:[]};
+let kpiAttachments=[];
 let currentMonth=document.getElementById("month")?.value||"2026-08";
 let currentChannel="Facebook";
 let currentAgency="BeeOne";
@@ -1730,8 +1755,19 @@ function isLocked(i,wi,type){
 }
 function ensureChannelData(){
  channels.forEach(ch=>{
-  if(!channelData[ch])channelData[ch]={kpis:clone(DEFAULT_KPIS),locks:normalizeLocks({},DEFAULT_KPIS.length),contents:[],paid:{campaigns:[]},review:{}};
+  if(!channelData[ch])channelData[ch]={kpis:clone(DEFAULT_KPIS),locks:normalizeLocks({},DEFAULT_KPIS.length),contents:[],paid:{campaigns:[]},review:{},attachments:[]};
  });
+}
+function normalizeAttachments(list){
+ return (Array.isArray(list)?list:[]).map(a=>({
+  id:a.id||("evd-"+Date.now()+"-"+Math.random().toString(36).slice(2,8)),
+  name:a.name||"Tệp",
+  path:a.path||"",
+  url:a.url||"",
+  platform:a.platform||"Khác",
+  size:safeNum(a.size),
+  uploadedAt:a.uploadedAt||""
+ }));
 }
 function normalizeIndustries(list){
  const out=Array.isArray(list)?list.map(x=>String(x||"").trim()).filter(Boolean):[];
@@ -1852,11 +1888,24 @@ function syncKpiIndustries(k){
   if(!existing.has(name))k.allocation.industries.push({id:"ind-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name,weight:0,actual:0});
  });
 }
+/* FIX: "chọn KPI phân bổ không hoạt động" — this function used to rebuild
+   select.innerHTML FIRST and only THEN read select.value. Reassigning innerHTML
+   resets a <select> to its first option in the browser, so by the time the code
+   read select.value it had already been wiped back to index 0 — whatever KPI the
+   user had just clicked in the dropdown (which is what fired this onchange in the
+   first place) was silently discarded before it could ever be used. That's also why
+   "Remove" on an industry row looked broken: removeIndustryFromKpi() reads this same
+   select's value to know which KPI to edit, so it kept editing KPI #0 no matter
+   which KPI was actually showing on screen. Capturing idx BEFORE the rebuild (and
+   only rebuilding the <option> list itself, not the selection) fixes both. */
 function renderIndustryAllocation(){
  const select=document.getElementById("industryKpiSelect"),tbody=document.getElementById("industryAllocationTable"),summary=document.getElementById("industryAllocationSummary");
  if(!select||!tbody||!summary)return;
+ let idx=Number(select.value);
+ if(!Number.isFinite(idx))idx=0;
  select.innerHTML=kpiData.map((k,i)=>`<option value="${i}">${escapeHtml(k.name)}</option>`).join("");
- let idx=Number(select.value);if(!Number.isFinite(idx)||idx>=kpiData.length)idx=0;select.value=String(idx);
+ if(idx<0||idx>=kpiData.length)idx=0;
+ select.value=String(idx);
  const k=kpiData[idx];if(!k)return;
  syncKpiIndustries(k);
  document.getElementById("industryAllocationMode").value=k.allocation.mode;
@@ -1873,14 +1922,38 @@ function renderIndustryAllocation(){
   <td><button class="small-action" onclick="removeIndustryFromKpi(${i})">Remove</button></td>
  </tr>`).join("");
 }
-async function saveIndustryAllocation(){
- const k=kpiData[Number(document.getElementById("industryKpiSelect")?.value)||0];if(!k)return;
- k.allocation=normalizeIndustryAllocation(k.allocation);
- const total=k.allocation.industries.reduce((a,r)=>a+safeNum(r.weight),0);
- if(Math.abs(total-100)>0.01){showToast(`Tổng tỷ trọng phải bằng 100%. Hiện tại: ${total.toFixed(2)}%`);return}
+/* NEW: previously had to click TWO separate "Save" buttons on this page — one for the
+   weekly KPI numbers ("Save KPI Plan"), a second one only for whichever Industry
+   Allocation happened to be showing in the dropdown ("Save Allocation") — and the
+   second one only ever validated the ONE KPI currently selected, silently skipping
+   every other KPI's allocation. saveKpiManagementPage() is now the single Save for
+   the whole page: it checks every KPI that has industries assigned (not just the one
+   on screen), then saves both the KPI weekly data and the industry allocations in
+   one action. saveKpis()/saveIndustryAllocation() below are kept as thin aliases in
+   case anything else still calls them by their old name. */
+async function saveKpiManagementPage(){
+ if(demoMode){showToast("Đang ở chế độ Demo — dữ liệu minh họa không được lưu.");return false}
+ const invalid=kpiData.filter(k=>{
+  const list=(k.allocation?.industries)||[];
+  if(!list.length)return false;
+  const total=list.reduce((a,r)=>a+safeNum(r.weight),0);
+  return Math.abs(total-100)>0.01;
+ });
+ if(invalid.length){
+  showToast(`Tổng tỷ trọng ngành hàng của "${invalid[0].name}" đang là ${invalid[0].allocation.industries.reduce((a,r)=>a+safeNum(r.weight),0).toFixed(2)}% — phải bằng 100% mới lưu được. Kiểm tra lại trước khi Save.`);
+  return false;
+ }
  const ok=await saveAllData(true);
- if(ok){await saveIndustrySettings();showToast(`Đã lưu phân bổ KPI cho ${k.name}`);renderIndustryAllocation();}
+ if(ok){
+  await saveIndustrySettings();
+  renderIndustryAllocation();
+  renderKpiAttachments();
+ }else{
+  showToast("KPI Management chưa được lưu. Kiểm tra thông báo Supabase.");
+ }
+ return ok;
 }
+async function saveIndustryAllocation(){return saveKpiManagementPage()}
 function setGlobalChannelSelector(){
  const e=document.getElementById("channel");if(!e)return;
  const keep=e.value;
@@ -1902,8 +1975,9 @@ function switchChannel(ch){
  kpiLocks=normalizeLocks(d.locks,kpiData.length);
  contents=normalizeContents(d.contents||[]);
  paidCampaigns=Array.isArray(d.paid?.campaigns)?d.paid.campaigns.map(normalizeCampaign):(d.paid?.campaign?[normalizeCampaign(d.paid)]:[]);
+ kpiAttachments=normalizeAttachments(d.attachments||[]);
  window.paidData=d.paid||{};window.reviewData=d.review||{};
- setGlobalChannelSelector();setChannelSelectors();renderKpis();renderKpiEditor();renderIndustryAllocation();renderContent();renderPaidCampaigns();applyReviewData();renderChannels();updateOverviewChart();;generateAutoInsights(false)
+ setGlobalChannelSelector();setChannelSelectors();renderKpis();renderKpiEditor();renderIndustryAllocation();renderContent();renderPaidCampaigns();applyReviewData();renderChannels();updateOverviewChart();renderKpiAttachments();;generateAutoInsights(false)
  document.getElementById("kpiChannelTitle").textContent=`${ch} — ${monthLabel(currentMonth)}`;;const cds=document.getElementById("contentDataSource");if(cds)cds.textContent=`Data source: Supabase · ${ch} · ${monthLabel(currentMonth)}`
 }
 /* FIX: "overviewKpiSelect" (the KPI dropdown next to the Weekly Performance chart
@@ -2028,7 +2102,8 @@ async function submitKpiActuals(){
  const ok=await saveAllData(false);
  if(!ok){kpiLocks=oldLocks;renderKpiEditor();return}
  renderKpiEditor();
- showToast("Actual đã được nghiệm thu và khóa. Các ô Actual đã mờ + 🔒.");
+ renderKpiAttachments();
+ showToast("Actual đã được nghiệm thu và khóa. Các ô Actual đã mờ + 🔒. Nếu chưa có tư liệu agency, hãy upload ở mục Tư liệu / Bằng chứng số liệu bên dưới.");
 }
 async function sha256Text(text){
  const data=new TextEncoder().encode(text);
@@ -2050,6 +2125,7 @@ async function unlockKpiEdit(){
    actualSubmitted:false
   };
   renderKpiEditor();
+  renderKpiAttachments();
   setDatabaseStatus("unsaved","warn");
   showToast("Đã mở khóa. Bây giờ bạn có thể GÕ LẠI Target/Actual. Nhớ Submit lại để khóa.");
  }catch(e){
@@ -2057,13 +2133,10 @@ async function unlockKpiEdit(){
   showToast("Không kiểm tra được mật khẩu Supabase: "+(e?.message||e?.code||"unknown error"));
  }
 }
-async function saveKpis(){if(demoMode){showToast("Đang ở chế độ Demo — dữ liệu minh họa không được lưu.");return false}
- const ok=await saveAllData(true);
- if(!ok)showToast("KPI chưa được lưu. Kiểm tra thông báo Supabase.");
-}
+async function saveKpis(){return saveKpiManagementPage()}
 function addChannel(){
  const name=prompt("Tên Digital Channel mới:");if(!name)return;
- if(!channels.includes(name)){channels.push(name);channelData[name]={kpis:clone(DEFAULT_KPIS),locks:normalizeLocks({},DEFAULT_KPIS.length),contents:[],paid:{campaigns:[]},review:{}};setGlobalChannelSelector();setChannelSelectors();currentChannel=name;switchChannel(name);saveAllData(true)}
+ if(!channels.includes(name)){channels.push(name);channelData[name]={kpis:clone(DEFAULT_KPIS),locks:normalizeLocks({},DEFAULT_KPIS.length),contents:[],paid:{campaigns:[]},review:{},attachments:[]};setGlobalChannelSelector();setChannelSelectors();currentChannel=name;switchChannel(name);saveAllData(true)}
 }
 /* Extracted out of renderChannels() so Nghiệm thu tháng (Monthly Review) can reuse the
    exact same per-channel achievement/spend/leads/CPL/ROAS math instead of duplicating
@@ -2257,6 +2330,7 @@ async function saveContentPage(){if(demoMode){showToast("Đang ở chế độ D
    review:clone(row.review||window.reviewData||{}),
    industries:clone(industries),
    campaigns:clone(campaignPlan||[]),
+   attachments:clone(row.attachments||kpiAttachments||[]),
    updatedAt:new Date().toISOString()
   };
   const record={
@@ -2934,7 +3008,8 @@ function hydrateChannelData(rows){
    locks:normalizeLocks(raw.locks,kpiDataCount(raw.kpis)),
    contents:normalizeContents(raw.contents||[]),
    paid:raw.paid||{},
-   review:raw.review||{}
+   review:raw.review||{},
+   attachments:normalizeAttachments(raw.attachments||[])
   };
  });
  const savedChannels=Object.keys(channelData);
@@ -2952,6 +3027,7 @@ async function upsertChannelData(channel,row){
    review:clone(row.review||{}),
    industries:clone(industries),
    campaigns:clone(campaignPlan||[]),
+   attachments:clone(row.attachments||[]),
    updatedAt:new Date().toISOString()
   };
   // Validate that the JSONB payload is actually serializable before sending.
@@ -2968,6 +3044,92 @@ async function upsertChannelData(channel,row){
   console.error("Supabase upsert error:",err);
   setDatabaseStatus("write error","bad");
   showToast("Supabase WRITE: "+databaseErrorMessage(err));
+  return false;
+ }
+}
+/* ASK A: "nếu đã nhập target actual cuối tháng đã submit thì cần phải upload lại
+   tư liệu của agency từ Meta, Google, Tiktok, ..." — evidence attachments for
+   KPI Management, stored in Supabase Storage bucket "kpi-evidence" (public,
+   anon SELECT/INSERT/DELETE policies already applied) and referenced from the
+   channel row's payload.attachments[] so they travel with the rest of the
+   month's data (see ensureChannelData/normalizeAttachments, and the
+   attachments field wired into hydrateChannelData/saveContentPage/
+   upsertChannelData/saveAllData above). */
+function formatFileSize(bytes){
+ bytes=safeNum(bytes);
+ if(!bytes)return "—";
+ if(bytes<1024)return bytes+" B";
+ if(bytes<1024*1024)return (bytes/1024).toFixed(1)+" KB";
+ return (bytes/1024/1024).toFixed(1)+" MB";
+}
+function renderKpiAttachments(){
+ const tbody=document.getElementById("kpiEvidenceTable");
+ const countEl=document.getElementById("kpiEvidenceCount");
+ const reminder=document.getElementById("kpiEvidenceReminder");
+ if(!tbody)return;
+ tbody.innerHTML=kpiAttachments.length?kpiAttachments.map((a,i)=>`<tr>
+  <td><a href="${escapeHtml(a.url)}" target="_blank" rel="noopener">${escapeHtml(a.name)}</a></td>
+  <td>${escapeHtml(a.platform)}</td>
+  <td>${formatFileSize(a.size)}</td>
+  <td>${a.uploadedAt?new Date(a.uploadedAt).toLocaleString("vi-VN"):"—"}</td>
+  <td><button class="small-action" title="Xoá tư liệu" onclick="deleteKpiAttachment(${i})">🗑 Xoá</button></td>
+ </tr>`).join(""):`<tr><td colspan="5" style="text-align:center;color:var(--muted)">Chưa có tư liệu nào cho ${escapeHtml(currentChannel)} · ${monthLabel(currentMonth)}</td></tr>`;
+ if(countEl)countEl.textContent=`${kpiAttachments.length} tệp đã upload`;
+ if(reminder)reminder.style.display=(kpiLocks.actualSubmitted&&kpiAttachments.length===0)?"block":"none";
+}
+async function uploadKpiEvidence(){
+ if(demoMode){showToast("Đang ở chế độ Demo — dữ liệu minh họa không được lưu.");return false}
+ if(!supabaseInitialized||!supabaseClient){showToast("Supabase chưa sẵn sàng");return false}
+ const fileInput=document.getElementById("kpiEvidenceFile");
+ const file=fileInput?.files?.[0];
+ if(!file){showToast("Vui lòng chọn tệp tư liệu trước khi Upload.");return false}
+ const platform=document.getElementById("kpiEvidencePlatform")?.value||"Khác";
+ const safeName=file.name.replace(/[^a-zA-Z0-9.\-_]/g,"_");
+ const path=`${currentAgency}/${monthKey(currentMonth)}/${currentChannel}/${Date.now()}-${safeName}`;
+ try{
+  const {error:upErr}=await supabaseClient.storage.from("kpi-evidence").upload(path,file,{upsert:false});
+  if(upErr)throw upErr;
+  const {data:pub}=supabaseClient.storage.from("kpi-evidence").getPublicUrl(path);
+  kpiAttachments.push(normalizeAttachments([{
+   name:file.name,
+   path,
+   url:pub?.publicUrl||"",
+   platform,
+   size:file.size,
+   uploadedAt:new Date().toISOString()
+  }])[0]);
+  renderKpiAttachments();
+  const ok=await saveAllData(false);
+  if(ok){
+   showToast(`Đã upload tư liệu: ${file.name}`);
+   if(fileInput)fileInput.value="";
+  }else{
+   showToast("Upload lên Storage thành công nhưng lưu vào Supabase thất bại — kiểm tra thông báo lỗi phía trên rồi bấm Save lại.");
+  }
+  return ok;
+ }catch(err){
+  console.error("Supabase evidence upload error:",err);
+  showToast("Upload tư liệu thất bại: "+databaseErrorMessage(err));
+  return false;
+ }
+}
+async function deleteKpiAttachment(i){
+ if(demoMode){showToast("Đang ở chế độ Demo — dữ liệu minh họa không được lưu.");return false}
+ const a=kpiAttachments[i];if(!a)return false;
+ if(!confirm(`Xoá tư liệu "${a.name}"? Hành động này không thể hoàn tác.`))return false;
+ try{
+  if(a.path){
+   const {error:delErr}=await supabaseClient.storage.from("kpi-evidence").remove([a.path]);
+   if(delErr)throw delErr;
+  }
+  kpiAttachments.splice(i,1);
+  renderKpiAttachments();
+  const ok=await saveAllData(false);
+  showToast(ok?`Đã xoá tư liệu: ${a.name}`:"Xoá khỏi Storage thành công nhưng chưa lưu được vào Supabase — bấm Save để đồng bộ lại.");
+  return ok;
+ }catch(err){
+  console.error("Supabase evidence delete error:",err);
+  showToast("Xoá tư liệu thất bại: "+databaseErrorMessage(err));
   return false;
  }
 }
@@ -3138,6 +3300,8 @@ async function saveAllData(showMessage=true){
    paid:getPaidData(),
    review:clone(window.reviewData||{}),
    industries:clone(industries),
+   campaigns:clone(campaignPlan||[]),
+   attachments:clone(kpiAttachments||[]),
    updatedAt:new Date().toISOString()
   };
   const {error}=await supabaseClient.from("digital_dashboard_data").upsert({
