@@ -1706,6 +1706,7 @@ function normalizeIndustryAllocation(a){
  const list=Array.isArray(x.industries)?x.industries:[];
  return {
   mode:x.mode==="custom"?"custom":"equal",
+  synced:Boolean(x.synced),
   industries:list.map((r,i)=>({
    id:r.id||("ind-"+i+"-"+Date.now()),
    name:String(r.name||"Chưa phân loại"),
@@ -1880,13 +1881,26 @@ function renameIndustry(idx,value){
  }
  saveKpiDraft();setDatabaseStatus("unsaved","warn");
 }
+/* BUG FIX: "Remove" trên bảng Industry Allocation trông như không hoạt động — thực ra
+   removeIndustryFromKpi() ĐÃ xóa đúng dòng, nhưng renderIndustryAllocation() gọi lại
+   syncKpiIndustries(k) ngay sau đó, và hàm này (bản cũ) luôn tự thêm lại MỌI ngành hàng
+   có trong danh sách "industries" toàn cục nếu KPI đang xem chưa có ngành đó — kể cả
+   ngành vừa bị Remove 1 dòng code trước! Vì "industries" toàn cục không hề bị xóa khi
+   Remove 1 dòng phân bổ (nó vẫn cần tồn tại cho các KPI/trang khác dùng chung), dòng
+   vừa xóa bị "hồi sinh" ngay trong cùng lần render, nhìn như nút Remove vô tác dụng.
+   Fix: chỉ tự động "seed" toàn bộ ngành hàng hiện có cho một KPI đúng 1 LẦN DUY NHẤT
+   (lần đầu tiên KPI đó có bảng phân bổ), đánh dấu bằng allocation.synced. Sau lần đó,
+   Remove/Add Industry là toàn quyền của người dùng cho từng KPI, không bị đồng bộ ép
+   lại từ danh sách toàn cục nữa. */
 function syncKpiIndustries(k){
  if(!k)return;
  k.allocation=normalizeIndustryAllocation(k.allocation);
+ if(k.allocation.synced)return;
  const existing=new Set(k.allocation.industries.map(r=>r.name));
  industries.forEach(name=>{
   if(!existing.has(name))k.allocation.industries.push({id:"ind-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name,weight:0,actual:0});
  });
+ k.allocation.synced=true;
 }
 /* FIX: "chọn KPI phân bổ không hoạt động" — this function used to rebuild
    select.innerHTML FIRST and only THEN read select.value. Reassigning innerHTML
