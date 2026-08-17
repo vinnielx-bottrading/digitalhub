@@ -90,6 +90,40 @@ td strong{font-weight:700}
 .mini-btn{padding:8px 10px;font-size:11px}
 .toast{position:fixed;right:24px;bottom:24px;background:#17191d;color:#fff;padding:11px 15px;border-radius:9px;font-size:12px;opacity:0;transform:translateY(10px);transition:.25s;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
+/* NEW: "trang này quá lớn và nhiều thông tin liên kết" — panel hướng dẫn thu gọn
+   thành 1 tab dọc sát mép phải màn hình, không đụng layout/grid của các trang hiện
+   có; bấm ra thì đè lên (overlay) một phần rìa phải chứ không đẩy nội dung. Nội dung
+   bên trong đổi theo trang đang mở (renderPageGuide(), gọi từ navigate()) và LUÔN thu
+   gọn lại mỗi khi chuyển trang mới, theo đúng lựa chọn đã chốt. */
+.page-guide-tab{
+ position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:970;
+ background:var(--dark);color:#fff;border:none;border-radius:10px 0 0 10px;
+ padding:14px 9px;display:flex;flex-direction:column;align-items:center;gap:7px;
+ cursor:pointer;writing-mode:vertical-rl;font-size:12px;letter-spacing:.03em;
+ box-shadow:-2px 0 10px rgba(0,0,0,.14);transition:.15s
+}
+.page-guide-tab:hover{background:#000;transform:translateY(-50%) translateX(-2px)}
+.page-guide-tab span{writing-mode:vertical-rl}
+.page-guide-panel{
+ position:fixed;top:0;right:0;height:100vh;width:360px;max-width:90vw;
+ background:var(--card);border-left:1px solid var(--line);
+ box-shadow:-14px 0 40px rgba(0,0,0,.20);z-index:980;
+ transform:translateX(100%);transition:transform .25s ease;
+ display:flex;flex-direction:column
+}
+.page-guide-panel.open{transform:translateX(0)}
+.page-guide-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:18px 20px;border-bottom:1px solid var(--line)}
+.page-guide-head h3{margin:0 0 3px;font-size:15px}
+.page-guide-head p{margin:0;font-size:11px;color:var(--muted)}
+.page-guide-close{background:none;border:none;font-size:20px;line-height:1;cursor:pointer;color:var(--muted);padding:2px 6px;border-radius:6px}
+.page-guide-close:hover{background:var(--bg);transform:none;box-shadow:none}
+.page-guide-body{padding:16px 20px 26px;overflow-y:auto;flex:1;font-size:12.5px;line-height:1.65;color:var(--text)}
+.page-guide-body h4{margin:18px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.page-guide-body h4:first-child{margin-top:0}
+.page-guide-body p{margin:0 0 10px}
+.page-guide-backdrop{position:fixed;inset:0;background:rgba(15,18,23,.25);z-index:975;opacity:0;pointer-events:none;transition:.2s}
+.page-guide-backdrop.open{opacity:1;pointer-events:auto}
+@media(max-width:640px){.page-guide-tab{padding:11px 7px;font-size:11px}.page-guide-panel{width:92vw}}
 @media(max-width:900px){.form-grid,.review-grid{grid-template-columns:1fr 1fr}.kpi-edit{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.form-grid,.review-grid{grid-template-columns:1fr}}
 .weekly-wrap{overflow:auto}
@@ -2948,7 +2982,97 @@ function updatePlannerReminder(){
 }
 window.addEventListener("scroll",updatePlannerReminder,{passive:true});
 window.addEventListener("resize",updatePlannerReminder);
-function navigate(page){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));const target=document.getElementById("page-"+page)||document.getElementById("page-overview");target.classList.add("active");if(page==="campaigns"){setCampaignPlanSelectors();renderCampaignPlan()}if(page==="channels"){renderChannels();ensureChannelPageChart()}if(page==="paid"){renderPaidCampaigns();ensurePaidPageChart()}if(page==="review"){renderMonthlyReview()}populateCampaignSelectors();document.querySelectorAll("#mainNav a").forEach(a=>a.classList.toggle("active",a.dataset.page===page));if(location.hash!=="#"+page)history.replaceState(null,"","#"+page);closeMobileNav();window.scrollTo({top:0,behavior:"smooth"})}
+/* NEW: nội dung hướng dẫn tĩnh cho panel bên phải — mỗi key khớp với data-page
+   trong #mainNav (overview/kpi/campaigns/content/channels/paid/review). Đây chỉ là
+   văn bản mô tả, không đọc/ghi Supabase nên không ảnh hưởng dữ liệu thật. */
+const PAGE_GUIDES={
+ overview:{
+  title:"Overview",
+  subtitle:"Tổng quan hiệu suất toàn kênh",
+  sections:[
+   {h:"Bộ lọc trên cùng",b:"Agency / Month / Channel lọc toàn bộ dữ liệu hiển thị trên trang này. Đổi Channel sang một kênh cụ thể thì các thẻ KPI và biểu đồ bên dưới chỉ tính riêng kênh đó; để 'All Channels' để xem gộp."},
+   {h:"Thẻ KPI & Weekly Performance",b:"Các thẻ KPI hiển thị Target/Actual/Achievement của tháng đang chọn. Dropdown 'KPI' cạnh biểu đồ đổi KPI đang xem trên biểu đồ xu hướng theo tuần."},
+   {h:"Nhận định & Hành động",b:"Executive Summary và 3 khối 'Điều gì hiệu quả / chưa đạt / Kế hoạch tháng tới' được tự động phân tích từ KPI, Content, Campaign, Paid Media. Bấm 'Phân tích lại' để tính lại theo dữ liệu mới nhất."},
+   {h:"Export Excel",b:"Xuất toàn bộ dữ liệu Agency + Tháng đang chọn ra file Excel để lưu trữ hoặc gửi báo cáo."}
+  ]
+ },
+ kpi:{
+  title:"KPI Management",
+  subtitle:"Quản lý KPI theo tháng, kênh, tuần",
+  sections:[
+   {h:"Month + Channel",b:"Mỗi cặp Tháng + Kênh là một bộ dữ liệu độc lập, dữ liệu tháng cũ không bị mất khi bạn chuyển sang tháng mới. '+ Add Channel' tạo thêm một kênh Digital mới."},
+   {h:"Submit Target / Submit Actual / Unlock",b:"Gõ số không tự khóa. Bấm 'Submit Target' để chốt & khóa cột Target, 'Submit Actual' để chốt & khóa cột Actual. Muốn sửa lại số đã khóa phải bấm 'Unlock / Edit' và nhập mật khẩu quản trị."},
+   {h:"Industry KPI Allocation",b:"Chia 1 KPI ra nhiều ngành hàng/business unit theo tỷ trọng % (tổng luôn phải = 100%). 'Chia đều 100%' tự chia bằng nhau; 'Tùy biến' cho tự nhập từng %. Target ngành hàng = KPI Target tháng × tỷ trọng; Actual ngành hàng dùng để đối chiếu, không ảnh hưởng KPI tổng."},
+   {h:"Bảng Weekly Target/Actual",b:"Nhập Target/Actual từng tuần cho từng KPI. Nút 🗑 cuối mỗi dòng xoá hẳn KPI đó khỏi kênh này (dùng khi campaign không cần đo KPI đó)."},
+   {h:"Tư liệu / Bằng chứng số liệu",b:"Sau khi Submit Actual, upload báo cáo/ảnh chụp từ Meta, Google, TikTok... làm bằng chứng số liệu. Hệ thống tự nhắc (banner vàng) nếu Actual đã Submit mà chưa có tệp nào."},
+   {h:"Nút Save",b:"Một nút Save duy nhất ở đầu trang lưu toàn bộ: KPI tuần, phân bổ ngành hàng và tư liệu — không cần bấm nhiều nơi."}
+  ]
+ },
+ campaigns:{
+  title:"Campaign Planning",
+  subtitle:"Cầu nối giữa KPI và hoạt động thực tế",
+  sections:[
+   {h:"Chuỗi logic KPI → Campaign → Activity",b:"Campaign được tạo ra từ KPI Plan (phân bổ mục tiêu/ngân sách). Content và Paid Media không tự đặt mục tiêu riêng — chỉ chọn Campaign đã có sẵn ở đây để ghi nhận kết quả, tránh số liệu bị trùng hoặc lệch nguồn."},
+   {h:"+ Add Campaign / Campaign Entry",b:"Tạo campaign mới, gán KPI mục tiêu và ngân sách kế hoạch."},
+   {h:"Lưu Campaign Plan",b:"Lưu toàn bộ danh sách campaign vào Supabase cho Tháng + Agency đang chọn."}
+  ]
+ },
+ content:{
+  title:"Content",
+  subtitle:"Hiệu quả từng content theo campaign",
+  sections:[
+   {h:"Content Entry",b:"Nhập tên content, chọn Campaign và Channel liên quan, cùng số liệu Reach/Engagement/Leads/Spend thực tế."},
+   {h:"Content KPI",b:"Bảng bên dưới chỉ hiển thị các content đã bấm Lưu — content đang nhập dở nhưng chưa lưu sẽ không xuất hiện ở đây."}
+  ]
+ },
+ channels:{
+  title:"Channels",
+  subtitle:"So sánh hiệu suất giữa các kênh",
+  sections:[
+   {h:"Channel Score",b:"So sánh % Achievement KPI trung bình của từng kênh (Target vs Actual)."},
+   {h:"Liên kết Paid Media",b:"Chuỗi Spend → Leads → CPL → ROAS được tính trực tiếp từ dữ liệu Paid Media đã lưu của từng kênh, không nhập tay riêng ở trang này."},
+   {h:"Monthly Channel Review",b:"Biểu đồ so sánh Plan vs Actual theo từng kênh trong tháng."}
+  ]
+ },
+ paid:{
+  title:"Paid Media",
+  subtitle:"Quản lý ngân sách quảng cáo & hiệu quả",
+  sections:[
+   {h:"Chuỗi đo lường",b:"Budget (ngân sách duyệt) → Spend (chi tiêu thực tế) → Traffic (Impression/Click) → Lead (Lead/Conversion) → Efficiency (CPL/ROAS/CTR)."},
+   {h:"Campaign Control",b:"Danh sách campaign quảng cáo đang chạy trong tháng; chọn 1 campaign để xem/sửa chi tiết ngân sách và kết quả."}
+  ]
+ },
+ review:{
+  title:"Nghiệm thu tháng",
+  subtitle:"Tổng hợp toàn bộ hoạt động Digital",
+  sections:[
+   {h:"Tổng quan tháng",b:"Gộp số liệu của TOÀN BỘ kênh trong Agency + Tháng đang chọn — không lọc theo 1 kênh riêng như các trang khác."},
+   {h:"KPI theo từng kênh / Content / Campaign / Paid Media",b:"4 khối này lấy đúng dữ liệu đã lưu ở các trang tương ứng (KPI Management, Content, Campaign Planning, Paid Media) — không nhập liệu riêng ở đây, chỉ đối chiếu và tổng kết."},
+   {h:"Nhận định & bài học",b:"Có thể tự viết tay, hoặc dùng nút 'đưa nhận định tự động' để lấy gợi ý từ Overview rồi chỉnh sửa lại trước khi lưu."},
+   {h:"Kết luận quản trị",b:"Điểm số và nhãn (Vượt/Đạt/Chưa đạt kế hoạch) được TÍNH TỰ ĐỘNG từ dữ liệu KPI thật của tháng — không phải số cố định, sẽ tự cập nhật khi bạn sửa KPI/Content/Campaign/Paid Media."}
+  ]
+ }
+};
+function renderPageGuide(page){
+ const g=PAGE_GUIDES[page]||PAGE_GUIDES.overview;
+ const titleEl=document.getElementById("pageGuideTitle"),subEl=document.getElementById("pageGuideSubtitle"),bodyEl=document.getElementById("pageGuideBody");
+ if(titleEl)titleEl.textContent=g.title;
+ if(subEl)subEl.textContent=g.subtitle;
+ if(bodyEl)bodyEl.innerHTML=g.sections.map(s=>`<h4>${escapeHtml(s.h)}</h4><p>${escapeHtml(s.b)}</p>`).join("");
+}
+function toggleGuidePanel(){
+ const panel=document.getElementById("pageGuidePanel"),backdrop=document.getElementById("pageGuideBackdrop");
+ if(!panel)return;
+ const open=panel.classList.toggle("open");
+ panel.setAttribute("aria-hidden",open?"false":"true");
+ backdrop?.classList.toggle("open",open);
+}
+function closeGuidePanel(){
+ document.getElementById("pageGuidePanel")?.classList.remove("open");
+ document.getElementById("pageGuidePanel")?.setAttribute("aria-hidden","true");
+ document.getElementById("pageGuideBackdrop")?.classList.remove("open");
+}
+function navigate(page){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));const target=document.getElementById("page-"+page)||document.getElementById("page-overview");target.classList.add("active");if(page==="campaigns"){setCampaignPlanSelectors();renderCampaignPlan()}if(page==="channels"){renderChannels();ensureChannelPageChart()}if(page==="paid"){renderPaidCampaigns();ensurePaidPageChart()}if(page==="review"){renderMonthlyReview()}populateCampaignSelectors();document.querySelectorAll("#mainNav a").forEach(a=>a.classList.toggle("active",a.dataset.page===page));if(location.hash!=="#"+page)history.replaceState(null,"","#"+page);closeMobileNav();renderPageGuide(page);closeGuidePanel();window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll("#mainNav a").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();navigate(a.dataset.page)}));
 window.addEventListener("hashchange",()=>navigate(location.hash.replace("#","")||"overview"));
 document.getElementById("kpiMonthPicker")?.addEventListener("change",async e=>{currentMonth=e.target.value;document.getElementById("month").value=currentMonth;await loadCampaignSettings();await loadMonthData()});
@@ -2970,6 +3094,15 @@ document.getElementById("month")?.addEventListener("change",async e=>{currentMon
 renderKpis();renderKpiEditor();renderContent();renderPaidCampaigns();makeCharts();setAgencySelectors();navigate(location.hash.replace("#","")||"overview");
 </script>
 <div id="toast" class="toast"></div>
+<div class="page-guide-backdrop" id="pageGuideBackdrop" onclick="closeGuidePanel()"></div>
+<button type="button" class="page-guide-tab" id="pageGuideTab" onclick="toggleGuidePanel()" aria-label="Mở hướng dẫn sử dụng trang này"><span>📘 Hướng dẫn</span></button>
+<aside class="page-guide-panel" id="pageGuidePanel" aria-hidden="true">
+ <div class="page-guide-head">
+  <div><h3 id="pageGuideTitle">Hướng dẫn</h3><p id="pageGuideSubtitle">Giải thích các mục trong trang</p></div>
+  <button type="button" class="page-guide-close" onclick="closeGuidePanel()" aria-label="Đóng hướng dẫn">✕</button>
+ </div>
+ <div class="page-guide-body" id="pageGuideBody"></div>
+</aside>
 <script>
 const SUPABASE_URL="https://wsfbjlmsjezvkfmefvjh.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_-_Udo3FhfogJlXSrLeSfiw_A453XMUA";
